@@ -1,0 +1,701 @@
+{
+ "header": {
+  "description": "Live mainnet pool state fixtures (sBTC->STX sponsor research). All chain reads done via GET endpoints on api.hiro.so from the desktop browser pane; hex decoded locally with @stacks/transactions.",
+  "info": {
+   "fetched_at": "2026-09-05T13:50:55.999Z",
+   "stacks_tip_height": 8923977,
+   "burn_block_height": 965622,
+   "tenure_height": 254997,
+   "stacks_tip": "f1eb02d683f5a37c9f7ca73e97185b06a44f9b08afc0e80399cc07c60674aabf",
+   "note": "from GET /v2/info immediately before the data_var reads (13:51-13:57Z); data vars fetched one GET each, so individual values may be from slightly different tips"
+  },
+  "method": {
+   "data_vars": "GET /v2/data_var/<addr>/<name>/<var>?proof=0 -> {\"data\":\"0x<cv>\"}",
+   "balances": "GET /extended/v2/addresses/<contract>/balances/{ft,stx} (v1 /balances returned 500 statement timeout for the xyk pool)",
+   "call_read": "NOT EXECUTED: POST /v2/contracts/call-read requires fetch/XHR or a form POST from the browser pane; fetch/XHR are blocked by the pane sandbox (TypeError: Failed to fetch) and the form-POST fallback was denied by the tool permission classifier. Container and device shells cannot reach api.hiro.so (egress proxy connect_rejected). Argument hex below is ready for replay."
+  }
+ },
+ "pools": {
+  "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1": {
+   "source": "/v2/data_var/<contract>/<var>?proof=0",
+   "data_vars": {
+    "x-balance": {
+     "raw": "{\"data\":\"0x0100000000000000000000000002aa8770\"}",
+     "hex": "0x0100000000000000000000000002aa8770",
+     "decoded": "44730224"
+    },
+    "y-balance": {
+     "raw": "{\"data\":\"0x0100000000000000000000001fd23a5a99\"}",
+     "hex": "0x0100000000000000000000001fd23a5a99",
+     "decoded": "136671025817"
+    },
+    "x-token": {
+     "raw": "{\"data\":\"0x0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e\"}",
+     "hex": "0x0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "decoded": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token"
+    },
+    "y-token": {
+     "raw": "{\"data\":\"0x06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d32\"}",
+     "hex": "0x06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d32",
+     "decoded": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2"
+    },
+    "x-protocol-fee": {
+     "raw": "{\"data\":\"0x010000000000000000000000000000000a\"}",
+     "hex": "0x010000000000000000000000000000000a",
+     "decoded": "10"
+    },
+    "x-provider-fee": {
+     "raw": "{\"data\":\"0x0100000000000000000000000000000028\"}",
+     "hex": "0x0100000000000000000000000000000028",
+     "decoded": "40"
+    },
+    "y-protocol-fee": {
+     "raw": "{\"data\":\"0x010000000000000000000000000000000a\"}",
+     "hex": "0x010000000000000000000000000000000a",
+     "decoded": "10"
+    },
+    "y-provider-fee": {
+     "raw": "{\"data\":\"0x0100000000000000000000000000000028\"}",
+     "hex": "0x0100000000000000000000000000000028",
+     "decoded": "40"
+    },
+    "pool-status": {
+     "raw": "{\"data\":\"0x03\"}",
+     "hex": "0x03",
+     "decoded": true
+    },
+    "pool-id": {
+     "raw": "{\"data\":\"0x0100000000000000000000000000000015\"}",
+     "hex": "0x0100000000000000000000000000000015",
+     "decoded": "21"
+    },
+    "fee-address": {
+     "raw": "{\"data\":\"0x0516c2c302fbfcfe96529fe9c7ab8de3ffeb9427dd13\"}",
+     "hex": "0x0516c2c302fbfcfe96529fe9c7ab8de3ffeb9427dd13",
+     "decoded": "SP31C60QVZKZ9CMMZX73TQ3F3ZZNS89YX2DCCFT8P"
+    }
+   }
+  },
+  "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070": {
+   "source": "/v2/data_var/<contract>/<var>?proof=0",
+   "data_vars": {
+    "pool": {
+     "raw": "{\"data\":\"0x0c000000090c626c6f636b2d6865696768740100000000000000000000000000882b53116275726e2d626c6f636b2d68656967687401000000000000000000000000000ebbf60466656573061681d1b585c012192166f5afa30d1245701e2073a916756e6976322d666565732d76315f305f302d30303730086c702d746f6b656e061681d1b585c012192166f5afa30d1245701e2073a91a756e6976322d6c702d746f6b656e2d76315f305f302d30303730087265736572766530010000000000000000000000318ffcab86087265736572766531010000000000000000000000000426fa800673796d626f6c0d00000009775354582d7342544306746f6b656e3006167c5f674a8fd08efa61dd9b11121e046dd2c89273047773747806746f6b656e310614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e\"}",
+     "hex": "0x0c000000090c626c6f636b2d6865696768740100000000000000000000000000882b53116275726e2d626c6f636b2d68656967687401000000000000000000000000000ebbf60466656573061681d1b585c012192166f5afa30d1245701e2073a916756e6976322d666565732d76315f305f302d30303730086c702d746f6b656e061681d1b585c012192166f5afa30d1245701e2073a91a756e6976322d6c702d746f6b656e2d76315f305f302d30303730087265736572766530010000000000000000000000318ffcab86087265736572766531010000000000000000000000000426fa800673796d626f6c0d00000009775354582d7342544306746f6b656e3006167c5f674a8fd08efa61dd9b11121e046dd2c89273047773747806746f6b656e310614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "decoded": {
+      "block-height": "8923987",
+      "burn-block-height": "965622",
+      "fees": "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-fees-v1_0_0-0070",
+      "lp-token": "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-lp-token-v1_0_0-0070",
+      "reserve0": "212869098374",
+      "reserve1": "69663360",
+      "symbol": "wSTX-sBTC",
+      "token0": "SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.wstx",
+      "token1": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token"
+     }
+    }
+   }
+  },
+  "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-fees-v1_0_0-0070": {
+   "source": "/v2/data_var/<contract>/<var>?proof=0",
+   "data_vars": {
+    "state": {
+     "raw": "{\"data\":\"0x0c000000020c70726f746f636f6c2d6665650c000000020364656e0100000000000000000000000000002710036e756d01000000000000000000000000000009c408737761702d6665650c000000020364656e0100000000000000000000000000002710036e756d01000000000000000000000000000026f2\"}",
+     "hex": "0x0c000000020c70726f746f636f6c2d6665650c000000020364656e0100000000000000000000000000002710036e756d01000000000000000000000000000009c408737761702d6665650c000000020364656e0100000000000000000000000000002710036e756d01000000000000000000000000000026f2",
+     "decoded": {
+      "protocol-fee": {
+       "den": "10000",
+       "num": "2500"
+      },
+      "swap-fee": {
+       "den": "10000",
+       "num": "9970"
+      }
+     }
+    },
+    "revenue": {
+     "raw": "{\"data\":\"0x0c0000000206746f6b656e3001000000000000000000000000116a7cbe06746f6b656e310100000000000000000000000000013847\"}",
+     "hex": "0x0c0000000206746f6b656e3001000000000000000000000000116a7cbe06746f6b656e310100000000000000000000000000013847",
+     "decoded": {
+      "token0": "292191422",
+      "token1": "79943"
+     }
+    }
+   }
+  },
+  "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15": {
+   "source": "/v2/data_var/<contract>/<var>?proof=0",
+   "data_vars": {
+    "pool-addresses": {
+     "raw": "{\"data\":\"0x0c000000050c636f72652d6164647265737306166cfc13604443857fb872e0f7dca9e2ce34f688de0f646c6d6d2d636f72652d762d312d310b6665652d616464726573730516c2c302fbfcfe96529fe9c7ab8de3ffeb9427dd13157661726961626c652d666565732d6d616e6167657205145f3ec2bf9733ae379dbfe5579d65d6cbf588659607782d746f6b656e06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d3207792d746f6b656e0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e\"}",
+     "hex": "0x0c000000050c636f72652d6164647265737306166cfc13604443857fb872e0f7dca9e2ce34f688de0f646c6d6d2d636f72652d762d312d310b6665652d616464726573730516c2c302fbfcfe96529fe9c7ab8de3ffeb9427dd13157661726961626c652d666565732d6d616e6167657205145f3ec2bf9733ae379dbfe5579d65d6cbf588659607782d746f6b656e06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d3207792d746f6b656e0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "decoded": {
+      "core-address": "SP1PFR4V08H1RAZXREBGFFQ59WB739XM8VVGTFSEA.dlmm-core-v-1-1",
+      "fee-address": "SP31C60QVZKZ9CMMZX73TQ3F3ZZNS89YX2DCCFT8P",
+      "variable-fees-manager": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD",
+      "x-token": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+      "y-token": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token"
+     }
+    },
+    "active-bin-id": {
+     "raw": "{\"data\":\"0x0000000000000000000000000000000154\"}",
+     "hex": "0x0000000000000000000000000000000154",
+     "decoded": "340"
+    },
+    "pool-fees": {
+     "raw": "{\"data\":\"0x0c000000060e782d70726f746f636f6c2d66656501000000000000000000000000000000190e782d70726f76696465722d66656501000000000000000000000000000000190e782d7661726961626c652d66656501000000000000000000000000000000000e792d70726f746f636f6c2d66656501000000000000000000000000000000190e792d70726f76696465722d66656501000000000000000000000000000000190e792d7661726961626c652d6665650100000000000000000000000000000000\"}",
+     "hex": "0x0c000000060e782d70726f746f636f6c2d66656501000000000000000000000000000000190e782d70726f76696465722d66656501000000000000000000000000000000190e782d7661726961626c652d66656501000000000000000000000000000000000e792d70726f746f636f6c2d66656501000000000000000000000000000000190e792d70726f76696465722d66656501000000000000000000000000000000190e792d7661726961626c652d6665650100000000000000000000000000000000",
+     "decoded": {
+      "x-protocol-fee": "25",
+      "x-provider-fee": "25",
+      "x-variable-fee": "0",
+      "y-protocol-fee": "25",
+      "y-provider-fee": "25",
+      "y-variable-fee": "0"
+     }
+    },
+    "initial-price": {
+     "raw": "{\"data\":\"0x0100000000000000000000000000004c9a\"}",
+     "hex": "0x0100000000000000000000000000004c9a",
+     "decoded": "19610"
+    },
+    "bin-step": {
+     "raw": "{\"data\":\"0x010000000000000000000000000000000f\"}",
+     "hex": "0x010000000000000000000000000000000f",
+     "decoded": "15"
+    },
+    "pool-info": {
+     "raw": "{\"data\":\"0x0c000000060f6372656174696f6e2d68656967687401000000000000000000000000000eafaa0c706f6f6c2d637265617465640307706f6f6c2d6964010000000000000000000000000000000f09706f6f6c2d6e616d650d0000000b5354582d734254432d4c500b706f6f6c2d73796d626f6c0d000000085354582d7342544308706f6f6c2d7572690d0000001768747470733a2f2f626974666c6f772e66696e616e6365\"}",
+     "hex": "0x0c000000060f6372656174696f6e2d68656967687401000000000000000000000000000eafaa0c706f6f6c2d637265617465640307706f6f6c2d6964010000000000000000000000000000000f09706f6f6c2d6e616d650d0000000b5354582d734254432d4c500b706f6f6c2d73796d626f6c0d000000085354582d7342544308706f6f6c2d7572690d0000001768747470733a2f2f626974666c6f772e66696e616e6365",
+     "decoded": {
+      "creation-height": "962474",
+      "pool-created": true,
+      "pool-id": "15",
+      "pool-name": "STX-sBTC-LP",
+      "pool-symbol": "STX-sBTC",
+      "pool-uri": "https://bitflow.finance"
+     }
+    }
+   }
+  }
+ },
+ "balances": {
+  "/extended/v1/address/SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1/balances": {
+   "statusCode": 500,
+   "code": "57014",
+   "error": "Internal Server Error",
+   "message": "canceling statement due to statement timeout"
+  },
+  "/extended/v2/addresses/SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1/balances/ft": {
+   "limit": 100,
+   "offset": 0,
+   "total": 2,
+   "results": [
+    {
+     "token": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1::pool-token",
+     "balance": "1000"
+    },
+    {
+     "token": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
+     "balance": "44681708"
+    }
+   ]
+  },
+  "/extended/v2/addresses/SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1/balances/stx": {
+   "balance": "136820022673",
+   "total_miner_rewards_received": "0",
+   "lock_tx_id": "",
+   "locked": "0",
+   "lock_height": 0,
+   "burnchain_lock_height": 0,
+   "burnchain_unlock_height": 0
+  },
+  "/extended/v2/addresses/SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070/balances/ft": {
+   "limit": 100,
+   "offset": 0,
+   "total": 1,
+   "results": [
+    {
+     "token": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
+     "balance": "69644225"
+    }
+   ]
+  },
+  "/extended/v2/addresses/SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070/balances/stx": {
+   "balance": "212927717277",
+   "total_miner_rewards_received": "0",
+   "lock_tx_id": "",
+   "locked": "0",
+   "lock_height": 0,
+   "burnchain_lock_height": 0,
+   "burnchain_unlock_height": 0
+  },
+  "/extended/v2/addresses/SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15/balances/ft": {
+   "limit": 100,
+   "offset": 0,
+   "total": 1,
+   "results": [
+    {
+     "token": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token::sbtc-token",
+     "balance": "69569370"
+    }
+   ]
+  },
+  "/extended/v2/addresses/SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15/balances/stx": {
+   "balance": "1298977172826",
+   "total_miner_rewards_received": "0",
+   "lock_tx_id": "",
+   "locked": "0",
+   "lock_height": 0,
+   "burnchain_lock_height": 0,
+   "burnchain_unlock_height": 0
+  }
+ },
+ "derived": {
+  "xyk": {
+   "x_token": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+   "y_token": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+   "x_balance_sats": "44730224",
+   "y_balance_ustx": "136671025817",
+   "fees_bps": {
+    "x_protocol": "10",
+    "x_provider": "40",
+    "y_protocol": "10",
+    "y_provider": "40"
+   },
+   "pool_status": true,
+   "pool_id": "21",
+   "fee_address": "SP31C60QVZKZ9CMMZX73TQ3F3ZZNS89YX2DCCFT8P",
+   "onchain_sbtc": "44681708",
+   "onchain_stx": "136820022673",
+   "get_dy_offchain": [
+    {
+     "x_amount": "1",
+     "fee_protocol": "0",
+     "fee_provider": "0",
+     "dx": "1",
+     "dy": "3055",
+     "dy_hex_ok_response": "070100000000000000000000000000000bef",
+     "transfers_from_caller": {
+      "to_pool": "1",
+      "to_fee_address": "0",
+      "total_debited": "1"
+     },
+     "note": null
+    },
+    {
+     "x_amount": "3",
+     "fee_protocol": "0",
+     "fee_provider": "0",
+     "dx": "3",
+     "dy": "9166",
+     "dy_hex_ok_response": "0701000000000000000000000000000023ce",
+     "transfers_from_caller": {
+      "to_pool": "3",
+      "to_fee_address": "0",
+      "total_debited": "3"
+     },
+     "note": null
+    },
+    {
+     "x_amount": "100",
+     "fee_protocol": "0",
+     "fee_provider": "0",
+     "dx": "100",
+     "dy": "305544",
+     "dy_hex_ok_response": "07010000000000000000000000000004a988",
+     "transfers_from_caller": {
+      "to_pool": "100",
+      "to_fee_address": "0",
+      "total_debited": "100"
+     },
+     "note": null
+    },
+    {
+     "x_amount": "331",
+     "fee_protocol": "0",
+     "fee_provider": "1",
+     "dx": "330",
+     "dy": "1008291",
+     "dy_hex_ok_response": "0701000000000000000000000000000f62a3",
+     "transfers_from_caller": {
+      "to_pool": "331",
+      "to_fee_address": "0",
+      "total_debited": "331"
+     },
+     "note": null
+    },
+    {
+     "x_amount": "1000",
+     "fee_protocol": "1",
+     "fee_provider": "4",
+     "dx": "995",
+     "dy": "3040106",
+     "dy_hex_ok_response": "0701000000000000000000000000002e636a",
+     "transfers_from_caller": {
+      "to_pool": "999",
+      "to_fee_address": "1",
+      "total_debited": "1000"
+     },
+     "note": null
+    },
+    {
+     "x_amount": "30000",
+     "fee_protocol": "30",
+     "fee_provider": "120",
+     "dx": "29850",
+     "dy": "91144400",
+     "dy_hex_ok_response": "0701000000000000000000000000056ec0d0",
+     "transfers_from_caller": {
+      "to_pool": "29970",
+      "to_fee_address": "30",
+      "total_debited": "30000"
+     },
+     "note": null
+    },
+    {
+     "x_amount": "1000000",
+     "fee_protocol": "1000",
+     "fee_provider": "4000",
+     "dx": "995000",
+     "dy": "2974018687",
+     "dy_hex_ok_response": "0701000000000000000000000000b143ec7f",
+     "transfers_from_caller": {
+      "to_pool": "999000",
+      "to_fee_address": "1000",
+      "total_debited": "1000000"
+     },
+     "note": null
+    }
+   ],
+   "formula": "fees=floor(x*10/10000)+floor(x*40/10000); dx=x-fees; dy=floor(y_bal*dx/(x_bal+dx)); requires min-dy>0 and dy>=min-dy",
+   "onchain_lp_pool_token_held_by_pool": "1000"
+  },
+  "univ2": {
+   "token0": "SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.wstx",
+   "token1": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+   "reserve0": "212869098374",
+   "reserve1": "69663360",
+   "symbol": "wSTX-sBTC",
+   "fees_contract": "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-fees-v1_0_0-0070",
+   "lp_token": "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-lp-token-v1_0_0-0070",
+   "swap_fee": {
+    "den": "10000",
+    "num": "9970"
+   },
+   "protocol_fee": {
+    "den": "10000",
+    "num": "2500"
+   },
+   "onchain_sbtc": "69644225",
+   "onchain_stx": "212927717277",
+   "sbtc_to_stx_direction": "token-in = token1 (sbtc-token), token-out = token0 (wstx); is-token0=false; amt-out = find-dx(r0, r1, amt-in-adjusted) = adj*r0/(r1+adj)"
+  },
+  "dlmm": {
+   "x_token": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+   "y_token": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+   "core_address": "SP1PFR4V08H1RAZXREBGFFQ59WB739XM8VVGTFSEA.dlmm-core-v-1-1",
+   "fee_address": "SP31C60QVZKZ9CMMZX73TQ3F3ZZNS89YX2DCCFT8P",
+   "active_bin_id_signed": 340,
+   "active_bin_id_unsigned": 840,
+   "bin_step": "15",
+   "initial_price": "19610",
+   "pool_fees_bps": {
+    "x-protocol-fee": "25",
+    "x-provider-fee": "25",
+    "x-variable-fee": "0",
+    "y-protocol-fee": "25",
+    "y-provider-fee": "25",
+    "y-variable-fee": "0"
+   },
+   "pool_info": {
+    "creation-height": "962474",
+    "pool-created": true,
+    "pool-id": "15",
+    "pool-name": "STX-sBTC-LP",
+    "pool-symbol": "STX-sBTC",
+    "pool-uri": "https://bitflow.finance"
+   },
+   "onchain_sbtc": "69569370",
+   "onchain_stx": "1298977172826",
+   "sbtc_to_stx_direction": "x=token-stx-v-1-2 (STX), y=sbtc-token -> use swap-y-for-x",
+   "bin_balances": "NOT FETCHED: balances-at-bin is a define-map (needs POST /v2/map_entry or call-read get-bin-balances)"
+  }
+ },
+ "call_read_requests": {
+  "sender": "SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4",
+  "status": "NOT EXECUTED: POST /v2/contracts/call-read requires fetch/XHR or a form POST from the browser pane; fetch/XHR are blocked by the pane sandbox (TypeError: Failed to fetch) and the form-POST fallback was denied by the tool permission classifier. Container and device shells cannot reach api.hiro.so (egress proxy connect_rejected). Argument hex below is ready for replay.",
+  "requests": [
+   {
+    "contract": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1",
+    "fn": "get-pool",
+    "arguments": []
+   },
+   {
+    "contract": "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070",
+    "fn": "get-pool",
+    "arguments": []
+   },
+   {
+    "contract": "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-fees-v1_0_0-0070",
+    "fn": "get-fees",
+    "arguments": []
+   },
+   {
+    "contract": "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-fees-v1_0_0-0070",
+    "fn": "calc-fees",
+    "arguments": [
+     "01000000000000000000000000000003e8"
+    ],
+    "args_human": [
+     "u1000"
+    ]
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-pool",
+    "arguments": []
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-active-bin-id",
+    "arguments": []
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-pool-for-swap",
+    "arguments": [
+     "04"
+    ],
+    "args_human": [
+     "false"
+    ]
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-pool-for-swap",
+    "arguments": [
+     "03"
+    ],
+    "args_human": [
+     "true"
+    ]
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-bin-balances",
+    "signed_bin_id": 337,
+    "arguments": [
+     "0100000000000000000000000000000345"
+    ],
+    "args_human": [
+     "u837"
+    ],
+    "note": "unsigned = signed + CENTER_BIN_ID(500); dlmm-core: (to-uint (+ bin-id (to-int CENTER_BIN_ID)))"
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-bin-balances",
+    "signed_bin_id": 338,
+    "arguments": [
+     "0100000000000000000000000000000346"
+    ],
+    "args_human": [
+     "u838"
+    ],
+    "note": "unsigned = signed + CENTER_BIN_ID(500); dlmm-core: (to-uint (+ bin-id (to-int CENTER_BIN_ID)))"
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-bin-balances",
+    "signed_bin_id": 339,
+    "arguments": [
+     "0100000000000000000000000000000347"
+    ],
+    "args_human": [
+     "u839"
+    ],
+    "note": "unsigned = signed + CENTER_BIN_ID(500); dlmm-core: (to-uint (+ bin-id (to-int CENTER_BIN_ID)))"
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-bin-balances",
+    "signed_bin_id": 340,
+    "arguments": [
+     "0100000000000000000000000000000348"
+    ],
+    "args_human": [
+     "u840"
+    ],
+    "note": "unsigned = signed + CENTER_BIN_ID(500); dlmm-core: (to-uint (+ bin-id (to-int CENTER_BIN_ID)))"
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-bin-balances",
+    "signed_bin_id": 341,
+    "arguments": [
+     "0100000000000000000000000000000349"
+    ],
+    "args_human": [
+     "u841"
+    ],
+    "note": "unsigned = signed + CENTER_BIN_ID(500); dlmm-core: (to-uint (+ bin-id (to-int CENTER_BIN_ID)))"
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-bin-balances",
+    "signed_bin_id": 342,
+    "arguments": [
+     "010000000000000000000000000000034a"
+    ],
+    "args_human": [
+     "u842"
+    ],
+    "note": "unsigned = signed + CENTER_BIN_ID(500); dlmm-core: (to-uint (+ bin-id (to-int CENTER_BIN_ID)))"
+   },
+   {
+    "contract": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+    "fn": "get-bin-balances",
+    "signed_bin_id": 343,
+    "arguments": [
+     "010000000000000000000000000000034b"
+    ],
+    "args_human": [
+     "u843"
+    ],
+    "note": "unsigned = signed + CENTER_BIN_ID(500); dlmm-core: (to-uint (+ bin-id (to-int CENTER_BIN_ID)))"
+   },
+   {
+    "contract": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-core-v-1-2",
+    "fn": "get-dy",
+    "arguments": [
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee61778796b2d706f6f6c2d736274632d7374782d762d312d31",
+     "0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d32",
+     "0100000000000000000000000000000001"
+    ],
+    "args_human": [
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1",
+     "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+     "u1"
+    ]
+   },
+   {
+    "contract": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-core-v-1-2",
+    "fn": "get-dy",
+    "arguments": [
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee61778796b2d706f6f6c2d736274632d7374782d762d312d31",
+     "0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d32",
+     "0100000000000000000000000000000003"
+    ],
+    "args_human": [
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1",
+     "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+     "u3"
+    ]
+   },
+   {
+    "contract": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-core-v-1-2",
+    "fn": "get-dy",
+    "arguments": [
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee61778796b2d706f6f6c2d736274632d7374782d762d312d31",
+     "0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d32",
+     "0100000000000000000000000000000064"
+    ],
+    "args_human": [
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1",
+     "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+     "u100"
+    ]
+   },
+   {
+    "contract": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-core-v-1-2",
+    "fn": "get-dy",
+    "arguments": [
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee61778796b2d706f6f6c2d736274632d7374782d762d312d31",
+     "0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d32",
+     "010000000000000000000000000000014b"
+    ],
+    "args_human": [
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1",
+     "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+     "u331"
+    ]
+   },
+   {
+    "contract": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-core-v-1-2",
+    "fn": "get-dy",
+    "arguments": [
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee61778796b2d706f6f6c2d736274632d7374782d762d312d31",
+     "0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d32",
+     "01000000000000000000000000000003e8"
+    ],
+    "args_human": [
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1",
+     "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+     "u1000"
+    ]
+   },
+   {
+    "contract": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-core-v-1-2",
+    "fn": "get-dy",
+    "arguments": [
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee61778796b2d706f6f6c2d736274632d7374782d762d312d31",
+     "0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d32",
+     "0100000000000000000000000000007530"
+    ],
+    "args_human": [
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1",
+     "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+     "u30000"
+    ]
+   },
+   {
+    "contract": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-core-v-1-2",
+    "fn": "get-dy",
+    "arguments": [
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee61778796b2d706f6f6c2d736274632d7374782d762d312d31",
+     "0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d32",
+     "01000000000000000000000000000f4240"
+    ],
+    "args_human": [
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1",
+     "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+     "u1000000"
+    ]
+   },
+   {
+    "contract": "SP1PFR4V08H1RAZXREBGFFQ59WB739XM8VVGTFSEA.dlmm-swap-router-v-1-1",
+    "fn": "swap-y-for-x-simple-multi",
+    "arguments": [
+     "06145f3ec2bf9733ae379dbfe5579d65d6cbf58865961d646c6d6d2d706f6f6c2d7374782d736274632d762d322d6270732d3135",
+     "06144e91b0982dbe4ae49bb9394b1f339fb7144beee60f746f6b656e2d7374782d762d312d32",
+     "0614f6decc7cfff2a413bd7cd4f53c25ad7fd1899acc0a736274632d746f6b656e",
+     "01000000000000000000000000000003e8",
+     "0100000000000000000000000000000000"
+    ],
+    "args_human": [
+     "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+     "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2 (x-token=STX)",
+     "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token (y-token=sBTC)",
+     "u1000",
+     "u0"
+    ],
+    "note": "x-token/y-token order taken from live pool-addresses data var"
+   }
+  ]
+ }
+}

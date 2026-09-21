@@ -1,0 +1,6 @@
+node_modules/
+costs-reports.json
+coverage/
+lcov.info
+.cache/datastore/
+# Keep .cache/requirements: the deployed mainnet sources our contract type-checks against, fetched 2026-09-05.

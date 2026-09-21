@@ -1,0 +1,37 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Install clarinet 3.23.2
+        run: |
+          curl -sSL -o clarinet.tar.gz https://github.com/hirosystems/clarinet/releases/download/v3.23.2/clarinet-linux-x64-glibc.tar.gz
+          tar xzf clarinet.tar.gz && sudo mv clarinet /usr/local/bin/ && clarinet --version
+      - run: cd contracts && clarinet check && npm ci && npm test
+  sdk-and-relay:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd sdk && npm ci && npm test
+      - run: cd relay && npm ci && npm test
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: cd sdk && npm ci && npm run build
+      - run: cd app && npm ci && npx playwright-core install --with-deps chromium
+      - name: Build and verify against fixtures
+        run: |
+          cd app && npm run build
+          export CHROMIUM=$(node -e "console.log(require('playwright-core').chromium.executablePath())")
+          npm run verify
+      - uses: actions/upload-artifact@v4
+        with: { name: screenshots, path: app/screenshots }

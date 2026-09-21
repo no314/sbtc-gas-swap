@@ -1,0 +1,32 @@
+sequenceDiagram
+    autonumber
+    participant U as User (tx-sender)<br/>holds sBTC, 0 STX
+    participant W as Wallet / dapp / SDK
+    participant R as Relay (sponsor key)<br/>holds STX
+    participant C as Contract sbtc-gas-swap
+    participant P as Pool (Bitflow / Velar)
+    participant B as b receiver (fixed principal)
+    participant X as c receiver (optional principal)
+
+    W->>W: quote pools via call-read, pick best, compute min-out
+    W->>U: sign contract call, sponsored=true, fee=0<br/>post-conditions: sBTC out eq P, STX out eq a, STX in gte min-out
+    U-->>W: signed hex (not broadcast, no txid yet)
+    W->>R: POST /v1/sponsor {tx}
+    R->>R: verify: our contract, whitelisted pool, tier >= relay minTier,<br/>exact post-condition set, user balance, user nonce
+    R->>R: set fee <= tier a, sponsor nonce, sign as sponsor
+    R->>R: broadcast, return txid
+    Note over R: network debits fee from R
+
+    rect rgb(245,240,230)
+    Note over C: on-chain execution, tx-sender = U, tx-sponsor? = R
+    C->>B: sBTC transfer, b = 50 bips of P (from U)
+    C->>X: sBTC transfer, c = 0..100 bips of P (from U), if provided
+    C->>P: swap remaining sBTC (from U)
+    P->>U: STX out (>= min-out, else abort)
+    C->>R: STX transfer a = tier (from U to tx-sponsor?)
+    end
+
+    Note over U: keeps STX out minus a. Now has gas.
+    Note over R: paid a in STX: refills fee balance, margin = a - fee
+    Note over B: paid b in sBTC: revenue
+    Note over X: paid c in sBTC: integrator revenue

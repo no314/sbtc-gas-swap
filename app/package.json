@@ -1,0 +1,28 @@
+{
+  "name": "sbtc-gas-swap-app",
+  "private": true,
+  "version": "0.1.0",
+  "description": "sBTC to Stacks gas: a static single-page app that swaps sBTC to STX in one sponsored transaction. Reference dapp for the sbtc-gas-swap-v1 contract, its relay, and the SDK.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test test/*.test.mjs",
+    "verify:hashes": "node scripts/verify-hashes.mjs",
+    "verify:app": "node scripts/verify-app.mjs",
+    "verify": "npm run test && npm run verify:hashes && npm run verify:app",
+    "shots": "node scripts/verify-app.mjs --shots-only"
+  },
+  "dependencies": {
+    "@phosphor-icons/web": "2.1.2",
+    "@no314/sbtc-gas-swap": "file:../sdk",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.4",
+    "playwright-core": "1.62.1",
+    "vite": "5.4.21"
+  }
+}

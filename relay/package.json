@@ -1,0 +1,29 @@
+{
+  "name": "sbtc-gas-relay",
+  "version": "0.1.0",
+  "description": "Sponsor relay for sbtc-gas-swap-v1: verifies a user-signed sponsored swap, preflights it, co-signs with the per-tier sponsor key, broadcasts. One core, two adapters (Cloudflare Worker, Node).",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test 'dist/test/**/*.test.js'",
+    "test:watch": "tsc -w -p tsconfig.json & node --test --watch 'dist/test/**/*.test.js'",
+    "dev:node": "npm run build && node dist/src/adapters/node.js",
+    "dev:worker": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "keygen": "node scripts/keygen.mjs"
+  },
+  "dependencies": {
+    "@stacks/network": "7.6.0",
+    "@stacks/transactions": "7.6.0",
+    "@stacks/wallet-sdk": "^7.6.0",
+    "@no314/sbtc-gas-swap": "file:../sdk"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260905.1",
+    "@types/node": "22.19.0",
+    "typescript": "7.0.2",
+    "wrangler": "4.129.0"
+  }
+}

@@ -1,0 +1,28 @@
+name = "sbtc-gas-relay"
+main = "dist/src/adapters/worker.js"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+[triggers]
+crons = ["*/10 * * * *"]
+
+[[kv_namespaces]]
+binding = "RELAY_KV"
+id = "52ed87abafb440feb9b6ce7eb563858a"
+
+[vars]
+STACKS_API_URL = "https://api.hiro.so"
+FEE_FACTOR = "1.0"
+FEE_FLOOR_USTX = "3000"
+PER_ORIGIN_PER_HOUR = "5"
+GLOBAL_PER_HOUR = "500"
+MAX_PENDING_PER_KEY = "20"
+# Opening bid per tier. Mid opens at this multiple of the low bid; high opens at this percent of its
+# tier. Both are floors: a hotter fee market still wins, and neither ever exceeds the tier.
+MID_FIRST_BID_MULTIPLE = "2"
+HIGH_FIRST_BID_PCT = "80"
+RBF_AFTER_SECONDS = "600"
+CONTRACT_ID = "SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4.sbtc-gas-swap-v1"
+TERMS_URL = "https://stx.fan/zero_to/sbtc-gas/disclaimer.html"
+
+# Secrets (never in this file): wrangler secret put SPONSOR_KEY_LOW | SPONSOR_KEY_MID | SPONSOR_KEY_HIGH | HIRO_API_KEY

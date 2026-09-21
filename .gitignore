@@ -1,0 +1,6 @@
+# Per-package ignores live in contracts/, relay/, app/. This file covers the repo root.
+.DS_Store
+*.log
+.env
+.env.local
+node_modules/

@@ -1,0 +1,332 @@
+{
+ "fetched_via": "api.hiro.so via desktop browser, sha256 of source string verified in-browser (crypto.subtle) vs local",
+ "tip_at_fetch": {
+  "peer_version": 402653200,
+  "pox_consensus": "a709fa3aef0f35b604617b2842f0bf0cdce23d39",
+  "burn_block_height": 965618,
+  "stable_pox_consensus": "525445bee083ac71b73217464a80513f6718dcb0",
+  "stable_burn_block_height": 965611,
+  "server_version": "stacks-node 4.0.2 (1b57c3f, release build, linux [x86_64])",
+  "network_id": 1,
+  "parent_network_id": 3652501241,
+  "stacks_tip_height": 8923836,
+  "stacks_tip": "76e72636dea528c16708c031c339d0c1054adf57092a42671acdc62d322f57b2",
+  "stacks_tip_consensus_hash": "a709fa3aef0f35b604617b2842f0bf0cdce23d39",
+  "genesis_chainstate_hash": "74237aa39aa50a83de11a4f53e9d3bb7d43461d1de9873f402e5453ae60bc59b",
+  "unanchored_tip": null,
+  "unanchored_seq": null,
+  "tenure_height": 254993,
+  "exit_at_block_height": null,
+  "is_fully_synced": true,
+  "node_public_key": "02e1ab1d349b04e9eb3252d3cb751aa987d7c1fbfff557dd8e0b8432c749712323",
+  "node_public_key_hash": "69c1929ca88d0ac8c6af52d7a4f327cbb09c7608",
+  "last_pox_anchor": {
+   "anchor_block_hash": "87a15bd48602e59d46b01be06c5ef90af2ff7c11a0e58917d0272007a738a974",
+   "anchor_block_txid": "daa5aa8d44e5fa5face5f2f877c86b144ec1c2f06d57494d834f2f7560a32e00"
+  },
+  "stackerdbs": []
+ },
+ "files": [
+  {
+   "file": "dlmm-core-trait-v-1-1.clar",
+   "publish_height": 5231893,
+   "chars": 1186,
+   "lines": 18,
+   "sha256": "a9251f39d5a7eb7153200385bf5d39f735be6b15040ef5ce032ca557d972e5a8",
+   "contract_id": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-core-trait-v-1-1",
+   "epoch": "Epoch33",
+   "clarity_version": "Clarity4",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-core-trait-v-1-1.clar"
+  },
+  {
+   "file": "dlmm-core-v-1-1.clar",
+   "publish_height": 5235205,
+   "chars": 84396,
+   "lines": 2140,
+   "sha256": "009ea45feca3a23dc3b2b9fda48aa2369f1d1528ba5f4b19fd9882f728ae955b",
+   "contract_id": "SP1PFR4V08H1RAZXREBGFFQ59WB739XM8VVGTFSEA.dlmm-core-v-1-1",
+   "epoch": "Epoch33",
+   "clarity_version": "Clarity4",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SP1PFR4V08H1RAZXREBGFFQ59WB739XM8VVGTFSEA.dlmm-core-v-1-1.clar"
+  },
+  {
+   "file": "dlmm-pool-stx-sbtc-v-2-bps-15.clar",
+   "publish_height": 8764577,
+   "chars": 23192,
+   "lines": 686,
+   "sha256": "1dbba70d7925a6421fe3a91daa63bef46d4cc34230487c78b7ae446554d4d53a",
+   "contract_id": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15",
+   "epoch": "Epoch40",
+   "clarity_version": "Clarity6",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-stx-sbtc-v-2-bps-15.clar"
+  },
+  {
+   "file": "dlmm-pool-trait-v-1-1.clar",
+   "publish_height": 5231888,
+   "chars": 4258,
+   "lines": 117,
+   "sha256": "cc156992fc15c5c5cca7507e152c902691e387b22c5462ef6650210ba0cf2362",
+   "contract_id": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-trait-v-1-1",
+   "epoch": "Epoch33",
+   "clarity_version": "Clarity4",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.dlmm-pool-trait-v-1-1.clar"
+  },
+  {
+   "file": "dlmm-swap-router-v-1-1.clar",
+   "publish_height": 5235215,
+   "chars": 14409,
+   "lines": 292,
+   "sha256": "602a77c9023632dc10d97e553ca1deafa9f02693194b7f53172bc8e7ad12a7a8",
+   "contract_id": "SP1PFR4V08H1RAZXREBGFFQ59WB739XM8VVGTFSEA.dlmm-swap-router-v-1-1",
+   "epoch": "Epoch33",
+   "clarity_version": "Clarity4",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SP1PFR4V08H1RAZXREBGFFQ59WB739XM8VVGTFSEA.dlmm-swap-router-v-1-1.clar"
+  },
+  {
+   "file": "sbtc-token.clar",
+   "publish_height": 328228,
+   "chars": 4759,
+   "lines": 158,
+   "sha256": "8f0a0edd55fa25613aac50769cf18a671227333850950d4f7f1f913ea0a9c8d1",
+   "contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token",
+   "epoch": "Epoch30",
+   "clarity_version": "Clarity3",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-token.clar"
+  },
+  {
+   "file": "sip-010-trait-ft-standard-v-1-1.SM1FKXGNZ.clar",
+   "publish_height": 5231863,
+   "chars": 457,
+   "lines": 14,
+   "sha256": "3ec2a0ac7a735262607de2846086a9220f2f299413f244dd0a34387b67786fc9",
+   "contract_id": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.sip-010-trait-ft-standard-v-1-1",
+   "epoch": "Epoch33",
+   "clarity_version": "Clarity4",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.sip-010-trait-ft-standard-v-1-1.clar"
+  },
+  {
+   "file": "sip-010-trait-ft-standard-v-1-1.clar",
+   "publish_height": 154676,
+   "chars": 474,
+   "lines": 15,
+   "sha256": "e1b3be4c73812d281b6d547bdb80e29231e56002d13ad81556462c744e299433",
+   "contract_id": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.sip-010-trait-ft-standard-v-1-1",
+   "epoch": "Epoch25",
+   "clarity_version": "Clarity2",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.sip-010-trait-ft-standard-v-1-1.clar"
+  },
+  {
+   "file": "sip-010-trait-ft-standard.SP2AKWJ.clar",
+   "publish_height": 97504,
+   "chars": 436,
+   "lines": 11,
+   "sha256": "c2eb0449e015b0505c64462c29296cc2bb86c6febcc563b2252e1aad52b1ccf2",
+   "contract_id": "SP2AKWJYC7BNY18W1XXKPGP0YVEK63QJG4793Z2D4.sip-010-trait-ft-standard",
+   "epoch": "Epoch2_05",
+   "clarity_version": "Clarity1",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SP2AKWJYC7BNY18W1XXKPGP0YVEK63QJG4793Z2D4.sip-010-trait-ft-standard.clar"
+  },
+  {
+   "file": "sip-013-trait-sft-standard-v-1-1.clar",
+   "publish_height": 5231873,
+   "chars": 543,
+   "lines": 15,
+   "sha256": "c06452b61670b4bdf61abadf2d35ea9fc0281d1ed4895d6a7e89c419f3fc2b6b",
+   "contract_id": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.sip-013-trait-sft-standard-v-1-1",
+   "epoch": "Epoch33",
+   "clarity_version": "Clarity4",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.sip-013-trait-sft-standard-v-1-1.clar"
+  },
+  {
+   "file": "sip-013-transfer-many-trait-v-1-1.clar",
+   "publish_height": 5231880,
+   "chars": 358,
+   "lines": 9,
+   "sha256": "df884cabaa7daf988584def6eab9fd6acd97a4a6a8ee487fae647a5fb1713c64",
+   "contract_id": "SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.sip-013-transfer-many-trait-v-1-1",
+   "epoch": "Epoch33",
+   "clarity_version": "Clarity4",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1FKXGNZJWSTWDWXQZJNF7B5TV5ZB235JTCXYXKD.sip-013-transfer-many-trait-v-1-1.clar"
+  },
+  {
+   "file": "token-stx-v-1-2.clar",
+   "publish_height": 168672,
+   "chars": 3396,
+   "lines": 125,
+   "sha256": "25f9e4db67bdd60aaac26712267d725b62704651fefcc96a65058c216abe7a8a",
+   "contract_id": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2",
+   "epoch": "Epoch25",
+   "clarity_version": "Clarity2",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.token-stx-v-1-2.clar"
+  },
+  {
+   "file": "univ2-fees-trait_v1_0_0.clar",
+   "publish_height": 166319,
+   "chars": 439,
+   "lines": 23,
+   "sha256": "d9312919a1b3fc61e807f1a1998e739b54bd7453f3753a86fd32c0286228a749",
+   "contract_id": "SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.univ2-fees-trait_v1_0_0",
+   "epoch": "Epoch25",
+   "clarity_version": "Clarity2",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.univ2-fees-trait_v1_0_0.clar"
+  },
+  {
+   "file": "univ2-fees-v1_0_0-0070.clar",
+   "publish_height": 310860,
+   "chars": 5982,
+   "lines": 192,
+   "sha256": "195086f2843636db740e012cef9e1c50cb3fda3dee8da3aafb84f601cca6def1",
+   "contract_id": "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-fees-v1_0_0-0070",
+   "epoch": "Epoch30",
+   "clarity_version": "Clarity3",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-fees-v1_0_0-0070.clar"
+  },
+  {
+   "file": "univ2-lp-token-trait_v1_0_0.clar",
+   "publish_height": 166319,
+   "chars": 750,
+   "lines": 21,
+   "sha256": "22032ed4ff8cb86981b3c3a42dd3fdcf4b83ec6df377f334f969c0fc941697b0",
+   "contract_id": "SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.univ2-lp-token-trait_v1_0_0",
+   "epoch": "Epoch25",
+   "clarity_version": "Clarity2",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.univ2-lp-token-trait_v1_0_0.clar"
+  },
+  {
+   "file": "univ2-math.clar",
+   "publish_height": 162781,
+   "chars": 957,
+   "lines": 51,
+   "sha256": "0fd6ef2168de6790042a340d79a4f057dbe93e67ac70b906540f65f8caa2f101",
+   "contract_id": "SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.univ2-math",
+   "epoch": "Epoch25",
+   "clarity_version": "Clarity2",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.univ2-math.clar"
+  },
+  {
+   "file": "univ2-pool-trait_v1_0_0.clar",
+   "publish_height": 166320,
+   "chars": 3072,
+   "lines": 108,
+   "sha256": "4c981efb2e5d89d7e4cea921c082796b23f5482926c953d309a4bdba43e6bc85",
+   "contract_id": "SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.univ2-pool-trait_v1_0_0",
+   "epoch": "Epoch25",
+   "clarity_version": "Clarity2",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.univ2-pool-trait_v1_0_0.clar"
+  },
+  {
+   "file": "univ2-pool-v1_0_0-0070.clar",
+   "publish_height": 310860,
+   "chars": 11100,
+   "lines": 348,
+   "sha256": "c2ef0958aa218d9a0e1b75290813a96d677b9e3d38b6c9e704fe094253b7b7ed",
+   "contract_id": "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070",
+   "epoch": "Epoch30",
+   "clarity_version": "Clarity3",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070.clar"
+  },
+  {
+   "file": "wstx.clar",
+   "publish_height": 138413,
+   "chars": 718,
+   "lines": 21,
+   "sha256": "e25bcba65227aaa1ac23b7002d567f242a241b9df47ffb1f429a7e487aa9a47e",
+   "contract_id": "SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.wstx",
+   "epoch": "Epoch24",
+   "clarity_version": "Clarity2",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SP1Y5YSTAHZ88XYK1VPDH24GY0HPX5J4JECTMY4A1.wstx.clar"
+  },
+  {
+   "file": "xyk-core-v-1-2.clar",
+   "publish_height": 168672,
+   "chars": 36976,
+   "lines": 986,
+   "sha256": "971ec1ee88ab055f85f030f0979e0825234549f4cf9e0e4107882a766ed772b2",
+   "contract_id": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-core-v-1-2",
+   "epoch": "Epoch25",
+   "clarity_version": "Clarity2",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-core-v-1-2.clar"
+  },
+  {
+   "file": "xyk-pool-sbtc-stx-v-1-1.clar",
+   "publish_height": 343009,
+   "chars": 9866,
+   "lines": 332,
+   "sha256": "fbb32046aa2e5d54773d51ad26d87d16fddc94749cc73c2639d49ec13a6afae5",
+   "contract_id": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1",
+   "epoch": "Epoch31",
+   "clarity_version": "Clarity2",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-sbtc-stx-v-1-1.clar"
+  },
+  {
+   "file": "xyk-pool-trait-v-1-2.clar",
+   "publish_height": 168671,
+   "chars": 1863,
+   "lines": 49,
+   "sha256": "e4f67ab7ea14e5f286b95c17e0ec43c0a69bdabc1cbc8f6670bd82c6d5a730c9",
+   "contract_id": "SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-trait-v-1-2",
+   "epoch": "Epoch25",
+   "clarity_version": "Clarity2",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM1793C4R5PZ4NS4VQ4WMP7SKKYVH8JZEWSZ9HCCR.xyk-pool-trait-v-1-2.clar"
+  },
+  {
+   "file": "dlmm-swap-router-v-1-1.interface.json",
+   "publish_height": null,
+   "chars": 8928,
+   "lines": 1,
+   "sha256": "35caf1799c11fdd9d782773f1d993f2e5d6aa8efec8a631fee119f5cc69650f1",
+   "fetched_at": null
+  },
+  {
+   "file": "info.json",
+   "publish_height": null,
+   "chars": 1089,
+   "lines": 1,
+   "sha256": "812b7989b5d72077c901babe5d442c3bce96a3be7b22bb5b0988857c87200a06",
+   "fetched_at": "2026-09-05T13:22:24.247Z"
+  },
+  {
+   "file": "univ2-pool-0070.interface.json",
+   "publish_height": null,
+   "chars": 6910,
+   "lines": 1,
+   "sha256": "76b5ca381a77c1014d6292b14bcef08ae6d711396720e7b06e5dd8f04fbdd71f",
+   "fetched_at": null
+  },
+  {
+   "file": "xyk-core-v-1-2.interface.json",
+   "publish_height": null,
+   "chars": 11755,
+   "lines": 1,
+   "sha256": "21148ec9106bf1fccfac4f17aceb92f1c1393c3f15cfc280c9fc51e099e94bd7",
+   "fetched_at": null
+  },
+  {
+   "file": "sbtc-registry.clar",
+   "publish_height": 328228,
+   "chars": 11209,
+   "lines": 370,
+   "sha256": "6769b24ae384bf5c3a15922a8ed42298b6bb7723ae30cf59c8619c172f500887",
+   "contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry",
+   "epoch": "Epoch30",
+   "clarity_version": "Clarity3",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry.clar"
+  },
+  {
+   "file": "sbtc-deposit.clar",
+   "publish_height": 328228,
+   "chars": 4151,
+   "lines": 116,
+   "sha256": "769a9a1e933c7dc23fd3b974d897ddcbb4b0f7b2329017bdbb84fd924bfcca29",
+   "contract_id": "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-deposit",
+   "epoch": "Epoch30",
+   "clarity_version": "Clarity3",
+   "requirements_cache": "/home/claude/work/repo/contracts/.cache/requirements/SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-deposit.clar",
+   "added_for": "clarinet check literal-principal resolution"
+  }
+ ],
+ "added_dependencies": [
+  "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-registry (contract-call? target of sbtc-token; itself has no contract-call?/trait deps, only literal principals .sbtc-bootstrap-signers/.sbtc-deposit/.sbtc-withdrawal)",
+  "SM3VDXK3WZZSA84XXFKAFAF15NNZX32CTSG82JFQ4.sbtc-deposit"
+ ]
+}

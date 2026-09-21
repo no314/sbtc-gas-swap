@@ -1,0 +1,24 @@
+{
+  "name": "sbtc-gas-swap-contracts",
+  "version": "0.1.0",
+  "description": "Clarinet project for sbtc-gas-swap-v1: tests first, real mainnet pool contracts loaded from the requirements cache.",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "check": "clarinet check",
+    "test": "vitest run",
+    "test:costs": "vitest run -- --costs",
+    "test:watch": "vitest"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@stacks/clarinet-sdk": "3.23.2",
+    "@stacks/transactions": "7.6.0",
+    "@types/node": "22.19.0",
+    "vitest": "4.1.11",
+    "vitest-environment-clarinet": "3.0.2"
+  },
+  "overrides": {
+    "vitest": "4.1.11"
+  }
+}

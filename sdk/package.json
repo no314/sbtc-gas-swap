@@ -1,0 +1,28 @@
+{
+  "name": "@no314/sbtc-gas-swap",
+  "version": "0.1.0",
+  "description": "Quote, build, and submit a sponsored sBTC to STX swap through sbtc-gas-swap-v1. No backend of its own: reads the chain through a Stacks node or the Hiro API, submits the user-signed transaction to a sponsor relay.",
+  "type": "module",
+  "license": "MIT",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "exports": {
+    ".": { "types": "./dist/src/index.d.ts", "import": "./dist/src/index.js" },
+    "./leather": { "types": "./dist/src/leather/index.d.ts", "import": "./dist/src/leather/index.js" },
+    "./bitflow": { "types": "./dist/src/bitflow/index.d.ts", "import": "./dist/src/bitflow/index.js" }
+  },
+  "files": ["dist/src", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test 'dist/test/**/*.test.js'",
+    "dust-swap": "npm run build && node dist/scripts/dust-swap.js"
+  },
+  "dependencies": {
+    "@stacks/network": "7.6.0",
+    "@stacks/transactions": "7.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.0",
+    "typescript": "7.0.2"
+  }
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=1200">
+<title>Deploy sbtc-gas-swap-v1 · operator page</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<script type="module" src="/src/deploy-page.js"></script>
+</head>
+<body>
+<div class="wrap legal">
+  <h1 class="heading-sm">Deploy sbtc-gas-swap-v1 with Leather</h1>
+  <p class="legal-lead">Operator page, run locally (<span class="mono">npm run dev</span>, then open <span class="mono">/deploy.html</span>). Deploys the reviewed source to mainnet through Leather, which can sign with a Ledger. Deny mode, no post-conditions: a deploy moves no assets.</p>
+  <div class="legal-card">
+    <h2 class="heading-xs">1. Source</h2>
+    <p>Reviewed source structure hash <span class="mono" id="hash">computing</span>. Expected <span class="mono">5702f09a5ab584d56d7e803b94143d1c51327c5a95f2a2309df4e604215ed608</span>. <span id="hash-status"></span></p>
+    <p>Contract name <span class="mono">sbtc-gas-swap-v1</span>, Clarity version <span class="mono">3</span>, network mainnet. Deployer must be <span class="mono">SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4</span>.</p>
+  </div>
+  <div class="legal-card">
+    <h2 class="heading-xs">2. Connect</h2>
+    <p><button class="btn primary" id="connect">Connect Leather</button> <span class="mono" id="account"></span></p>
+    <p id="account-status"></p>
+  </div>
+  <div class="legal-card">
+    <h2 class="heading-xs">3. Deploy</h2>
+    <p>Leather shows the deploy for approval; on a Ledger, confirm on the device. The fee is set in Leather.</p>
+    <p><button class="btn primary" id="deploy" disabled>Deploy to Mainnet</button></p>
+    <p id="result"></p>
+  </div>
+  <div class="legal-card">
+    <h2 class="heading-xs">4. After it is mined</h2>
+    <p>Run <span class="mono">node scripts/pin-contract.mjs</span> in <span class="mono">contracts/</span>; it confirms the live source hashes to the pinned value and prints the publish height for <span class="mono">docs/contract.md</span>.</p>
+  </div>
+  <p class="legal-foot"><a href="./index.html">Back to sBTC to Stacks gas</a></p>
+</div>
+</body>
+</html>
