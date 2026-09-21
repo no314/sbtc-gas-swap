@@ -69,9 +69,9 @@ Each command asks for the value; paste it and press Enter. The terminal prints `
 
 ### 7. Check the public settings
 
-In `relay/wrangler.toml` under `[vars]`: `FEE_FACTOR = "1.0"`, `FEE_FLOOR_USTX = "3000"`, `PER_ORIGIN_PER_HOUR = "5"`, `GLOBAL_PER_HOUR = "500"`, `MAX_PENDING_PER_KEY = "20"`, `MID_FIRST_BID_MULTIPLE = "2"`, `HIGH_FIRST_BID_PCT = "80"`, `RBF_AFTER_SECONDS = "600"`, `CONTRACT_ID`, `TERMS_URL`. Leave the defaults for the first deploy. `CONTRACT_ID` must be the deployed contract; see [contract.md](contract.md#deployment).
+In `relay/wrangler.toml` under `[vars]`: `FEE_FACTOR = "1.0"`, `FEE_FLOOR_USTX = "3000"`, `PER_ORIGIN_PER_HOUR = "5"`, `GLOBAL_PER_HOUR = "500"`, `MAX_PENDING_PER_KEY = "20"`, `MID_FIRST_BID_MULTIPLE = "2"`, `HIGH_FIRST_BID_PCT = "80"`, `RBF_AFTER_SECONDS_LOW = "1800"`, `RBF_AFTER_SECONDS_MID = "1800"`, `RBF_AFTER_SECONDS_HIGH = "600"`, `CONTRACT_ID`, `TERMS_URL`. Leave the defaults for the first deploy. `CONTRACT_ID` must be the deployed contract; see [contract.md](contract.md#deployment).
 
-The last three set what a tier buys. Low bids the market rate. Mid opens at twice the low bid. High opens at 80 percent of its tier, and a pending transaction is bumped 10 percent every 10 minutes up to the tier. Raising `HIGH_FIRST_BID_PCT` to `100` makes high bid its full 1 STX immediately and leaves no room for a replacement, so the transaction can only wait. Full derivation in [relay.md](relay.md#fee-policy).
+Those five set what a tier buys. Low bids the market rate. Mid opens at twice the low bid. High opens at 80 percent of its tier. A pending transaction is bumped 10 percent after the tier's wait: 30 minutes for low and mid, 10 minutes (every sweep) for high, so high reaches the user's full tier within half an hour. Raising `HIGH_FIRST_BID_PCT` to `100` makes high bid its full 1 STX immediately and leaves no room for a replacement, so the transaction can only wait. Full derivation in [relay.md](relay.md#fee-policy).
 
 ### 8. Deploy
 
@@ -103,7 +103,7 @@ The script prints the quote, the relay's answer and polls until the transaction 
 
 ### 11. List the relay
 
-Add your URL to [`docs/sponsors.json`](sponsors.json) in a pull request (format in [sponsors.md](sponsors.md)), then run `bash scripts/publish-stx-fan.sh` so the file reaches `https://stx.fan/zero_to/sbtc-gas/sponsors.json`. The SDK and the dapp discover relays from that URL and rank them by `/v1/info`.
+Add your URL to [`docs/sponsors.json`](sponsors.json) in a pull request (format in [sponsors.md](sponsors.md)), then run `bash scripts/publish-stx-fan.sh` so the file reaches `https://stx.fan/zero_to/gas/sponsors.json`. The SDK and the dapp discover relays from that URL and rank them by `/v1/info`.
 
 ### 12. Watch it
 
@@ -119,10 +119,10 @@ Two files must be reachable over HTTPS: `sponsors.json`, which the SDK reads to 
 ```
 git clone git@github.com:no314/stx-fan.git ../stx-fan   # once
 bash scripts/publish-stx-fan.sh
-cd ../stx-fan && git add zero_to/sbtc-gas && git commit -m "sbtc-gas: publish" && git push
+cd ../stx-fan && git add zero_to/gas && git commit -m "sbtc-gas: publish" && git push
 ```
 
-The script builds the SDK and the app, runs the fixture harness, and stages `app/dist/` plus `docs/sponsors.json` into `../stx-fan/zero_to/sbtc-gas/`. It never commits. `deploy.html` is excluded: that page is the local-only Ledger deploy tool. Live at `https://stx.fan/zero_to/sbtc-gas/`.
+The script builds the SDK and the app, runs the fixture harness, and stages `app/dist/` plus `docs/sponsors.json` into `../stx-fan/zero_to/gas/`. It never commits. `deploy.html` is excluded: that page is the local-only Ledger deploy tool. Live at `https://stx.fan/zero_to/gas/`.
 
 The source repo itself needs no website. Integrators install `@no314/sbtc-gas-swap` from npm and read `docs/` on GitHub.
 

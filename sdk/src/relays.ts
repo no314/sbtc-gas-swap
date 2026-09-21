@@ -19,7 +19,7 @@ export interface RelayCandidate { url: string; info?: RelayInfo; error?: string 
 export interface SubmitOk { ok: true; txid: string; relay: string; fee: string; tier: string; sponsor: string; sponsoredTx: string }
 export interface SubmitFail { ok: false; attempts: { relay: string; code: string; message: string }[] }
 
-export const DEFAULT_SPONSORS_URL = "https://stx.fan/zero_to/sbtc-gas/sponsors.json";
+export const DEFAULT_SPONSORS_URL = "https://stx.fan/zero_to/gas/sponsors.json";
 
 export interface RelayClientOptions { fetch?: typeof fetch; sponsorsUrl?: string; relays?: string[]; timeoutMs?: number }
 

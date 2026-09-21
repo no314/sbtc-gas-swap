@@ -125,7 +125,7 @@ describe("buildInfo", () => {
     assert.equal(info.feeEstimate.mid, "20000");
     // high opens at 80 percent of its tier.
     assert.equal(info.feeEstimate.high, "800000");
-    assert.equal(info.feePolicy.rbfAfterSeconds, POLICY.rbfAfterSeconds);
+    assert.deepEqual(info.feePolicy.rbfAfterSeconds, POLICY.rbfAfterSeconds);
     assert.equal(info.feePolicy.maxFee.high, TIERS.high.toString());
     assert.equal(info.feeFactor, 1);
   });
@@ -150,11 +150,19 @@ describe("planRbf", () => {
     assert.deepEqual(plan.done.map((r) => r.sponsorNonce), [5n]);
     assert.equal(plan.bump.length, 0);
   });
-  test("the bump threshold is one sweep interval: 10 minutes", () => {
+  test("the bump threshold is per tier: low and mid wait 30 minutes, high waits one 10 minute sweep", () => {
     const nonces = { SPX: { lastExecuted: 6, lastMempool: 7, possibleNext: 8, missing: [] } };
-    assert.equal(POLICY.rbfAfterSeconds, 600);
-    assert.equal(planRbf([rec({ broadcastAt: 0 })], nonces, 9 * 60_000, POLICY).bump.length, 0);
-    assert.equal(planRbf([rec({ broadcastAt: 0 })], nonces, 11 * 60_000, POLICY).bump.length, 1);
+    assert.deepEqual(POLICY.rbfAfterSeconds, { low: 1800, mid: 1800, high: 600 });
+    // mid (the default record) at 11 minutes: untouched; at 31: bumped
+    assert.equal(planRbf([rec({ broadcastAt: 0 })], nonces, 11 * 60_000, POLICY).bump.length, 0);
+    assert.equal(planRbf([rec({ broadcastAt: 0 })], nonces, 31 * 60_000, POLICY).bump.length, 1);
+    // low behaves like mid
+    assert.equal(planRbf([rec({ tier: "low", fee: 3_000n, broadcastAt: 0 })], nonces, 29 * 60_000, POLICY).bump.length, 0);
+    assert.equal(planRbf([rec({ tier: "low", fee: 3_000n, broadcastAt: 0 })], nonces, 31 * 60_000, POLICY).bump.length, 1);
+    // high at 11 minutes: bumped already
+    const high = planRbf([rec({ tier: "high", fee: 800_000n, broadcastAt: 0 })], nonces, 11 * 60_000, POLICY);
+    assert.equal(high.bump.length, 1);
+    assert.equal(high.bump[0].newFee, 880_000n);
   });
   test("a fee already at the tier is reported as stuck instead of bumped", () => {
     const plan = planRbf([rec({ fee: TIERS.mid })], { SPX: { lastExecuted: 6, lastMempool: 7, possibleNext: 8, missing: [] } }, 60 * 60_000, POLICY);

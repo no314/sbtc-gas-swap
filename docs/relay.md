@@ -22,7 +22,7 @@ All responses are JSON with `access-control-allow-origin: *`.
 | `minTier` | Lowest tier the relay accepts at the current fee estimate, or `none` when even `high` does not cover the fee |
 | `feeEstimate` | `{low, mid, high}` in uSTX: the fee the relay would bid for each tier right now |
 | `feeFactor` | The operator's multiplier on the node estimate |
-| `feePolicy` | `firstBid` per tier, `rbfAfterSeconds`, `rbfBumpBips`, and `maxFee` per tier: what the tier buys and how fast it is bumped |
+| `feePolicy` | `firstBid`, `rbfAfterSeconds` and `maxFee` per tier, plus `rbfBumpBips`: what the tier buys and how fast it is bumped |
 | `maxPerOriginPerHour` | Requests accepted per origin address per hour |
 | `pending` | `{low, mid, high}`: sponsored transactions not yet mined per key |
 | `termsUrl` | The disclaimer the operator publishes |
@@ -78,11 +78,11 @@ The market rate is the same for every tier: `market = max(estimate * feeFactor, 
 
 The tier then sets the opening bid, so a user who paid for a higher tier gets a higher bid rather than a larger sponsor margin. `lowBid` is `min(market, 10000)`, the bid the low tier would place right now.
 
-| Tier | Opening bid | Typical today (market `3000`) |
-| --- | --- | --- |
-| low | `market` | `3000` |
-| mid | `max(market, 2 * lowBid)` | `6000` |
-| high | `max(market, 80% of the tier)` | `800000` |
+| Tier | Opening bid | Typical today (market `3000`) | Bumped after |
+| --- | --- | --- | --- |
+| low | `market` | `3000` | 30 minutes |
+| mid | `max(market, 2 * lowBid)` | `6000` | 30 minutes |
+| high | `max(market, 80% of the tier)` | `800000` | 10 minutes |
 
 `fee = min(openingBid, tier)`. No tier ever bids above its own tier, because the tier is what the user repays; the sponsor's margin is `tier - fee`. The mid multiple and the high percentage are the `MID_FIRST_BID_MULTIPLE` and `HIGH_FIRST_BID_PCT` variables in `wrangler.toml`; setting `HIGH_FIRST_BID_PCT = "100"` makes the high tier bid its full 1 STX and leaves no room for a replacement.
 
@@ -94,7 +94,7 @@ Three keys, one per tier, so a low-tier queue cannot block mid or high. Per key 
 
 ## Replace-by-fee sweep
 
-Every 10 minutes (Worker Cron Trigger, or a timer in the Node adapter): drop pending records the chain has executed; for records pending longer than `rbfAfterSeconds` (default 10 minutes, one sweep interval), re-sponsor the original user transaction at the same sponsor nonce with `fee + 10 percent` (at least `+1` uSTX, the mempool requires a strictly higher total fee), never above the tier; records already at the tier are reported as stuck for operator attention. A high-tier transaction opening at 80 percent of the tier has three bumps available (`880000`, `968000`, `1000000`) before it is stuck. Mempool garbage collection is about 42.7 hours in Nakamoto, so a stuck record resolves by itself if nothing else does.
+Every 10 minutes (Worker Cron Trigger, or a timer in the Node adapter): drop pending records the chain has executed; for records pending longer than the tier's `rbfAfterSeconds`, re-sponsor the original user transaction at the same sponsor nonce with `fee + 10 percent` (at least `+1` uSTX, the mempool requires a strictly higher total fee), never above the tier; records already at the tier are reported as stuck for operator attention. Low and mid wait 30 minutes: low bids the market rate and mid already opens high, so a bump there is a correction, not the plan. High waits one sweep interval, 10 minutes, so it reaches the user's full tier as fast as the mempool rule allows: `800000`, `880000`, `968000`, `1000000` over 30 minutes, then stuck. The margin on the high tier is meant for the miner, not the sponsor. Mempool garbage collection is about 42.7 hours in Nakamoto, so a stuck record resolves by itself if nothing else does.
 
 ## Rate limits and state
 

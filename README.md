@@ -23,9 +23,9 @@ This repo needs no website. Integrators get the SDK from npm and read the docs h
 
 | URL | Source | Published by |
 | --- | --- | --- |
-| `https://stx.fan/zero_to/sbtc-gas/` | `app/dist/` | `scripts/publish-stx-fan.sh` |
-| `https://stx.fan/zero_to/sbtc-gas/sponsors.json` | `docs/sponsors.json` | the same script |
-| `https://stx.fan/zero_to/sbtc-gas/disclaimer.html` | `app/disclaimer.html` | the same script |
+| `https://stx.fan/zero_to/gas/` | `app/dist/` | `scripts/publish-stx-fan.sh` |
+| `https://stx.fan/zero_to/gas/sponsors.json` | `docs/sponsors.json` | the same script |
+| `https://stx.fan/zero_to/gas/disclaimer.html` | `app/disclaimer.html` | the same script |
 
 The app is the proof of concept: a working reference implementation of the SDK and the demo to point people at. Nothing in the contract or the relay depends on it.
 

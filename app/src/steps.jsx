@@ -187,7 +187,7 @@ export function Step2({ account, onConnect, verification, relays, snapshot, snap
     {slippageBips == null ? <StatusLine kind="err">Slippage must be a percentage from 0.1 to 99 with at most two decimals.</StatusLine> : null}
     {quote && !best ? <StatusLine kind="err">No pool can quote this amount ({quote.error}). Raise the amount or Refresh.</StatusLine> : null}
     {buildErr ? <StatusLine kind="err">{buildErr.code === "MIN_OUT_BELOW_TIER" ? "Min-out below tier: " : ""}{buildErr.message}.</StatusLine> : null}
-    {relays && !ranked.length ? <StatusLine kind="err">{relays.infos.length ? `No reachable relay accepts the ${tier} tier; the lowest relay minimum is ${relays.minTier}.` : "No relay is reachable, so nothing can sponsor the swap right now. Refresh to retry; the relay list comes from sponsors.json on the docs site."}</StatusLine> : null}
+    {relays && !ranked.length ? <StatusLine kind="err">{relays.infos.length ? `No reachable relay accepts the ${tier} tier; the lowest relay minimum is ${relays.minTier}.` : "No relay is reachable, so nothing can sponsor the swap right now. Refresh to retry; the relay list comes from the sponsors.json published next to this page."}</StatusLine> : null}
   </div>
   <PanelFoot onBack={onBack}>
     {account && blockers.length ? <span className="foot-note">blocked: {blockers.join(", ")}</span> : null}

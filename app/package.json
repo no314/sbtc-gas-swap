@@ -12,7 +12,10 @@
     "verify:hashes": "node scripts/verify-hashes.mjs",
     "verify:app": "node scripts/verify-app.mjs",
     "verify": "npm run test && npm run verify:hashes && npm run verify:app",
-    "shots": "node scripts/verify-app.mjs --shots-only"
+    "shots": "node scripts/verify-app.mjs --shots-only",
+    "sponsors": "node -e \"require('fs').copyFileSync('../docs/sponsors.json','public/sponsors.json')\"",
+    "predev": "npm run sponsors",
+    "prebuild": "npm run sponsors"
   },
   "dependencies": {
     "@phosphor-icons/web": "2.1.2",

@@ -1,6 +1,6 @@
 # sponsors.json
 
-A directory of known sponsor relays, published at `https://stx.fan/zero_to/sbtc-gas/sponsors.json` by [`scripts/publish-stx-fan.sh`](../scripts/publish-stx-fan.sh). The SDK reads it, then asks each relay's `/v1/info` for the truth (sponsor addresses, minimum tier, fees). Listing is not an endorsement and not a gate: the contract pays any relay that co-signs, listed or not.
+A directory of known sponsor relays, published at `https://stx.fan/zero_to/gas/sponsors.json` by [`scripts/publish-stx-fan.sh`](../scripts/publish-stx-fan.sh). The SDK reads it, then asks each relay's `/v1/info` for the truth (sponsor addresses, minimum tier, fees). Listing is not an endorsement and not a gate: the contract pays any relay that co-signs, listed or not.
 
 Format:
 

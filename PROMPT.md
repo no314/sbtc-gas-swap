@@ -34,7 +34,7 @@ Non-goals: BTC to sBTC bridging (sbtc.stacks.co does that; link out). Custom fee
 - **pool id**: small uint the SDK passes selecting one whitelisted pool.
 - **sponsor**: the relay key that co-signs and pays the network fee. Three keys, one per tier.
 - **relay**: the service that verifies, preflights, co-signs, broadcasts.
-- **sponsors.json**: static list of known relay endpoints served from `https://stx.fan/zero_to/sbtc-gas/sponsors.json`.
+- **sponsors.json**: static list of known relay endpoints served from `https://stx.fan/zero_to/gas/sponsors.json`.
 
 ## 3. Network identity
 
@@ -156,7 +156,7 @@ Legal page `app/disclaimer.html` (second Vite entry, same tokens): the software 
 
 ## 8. Docs: `docs/` (markdown, read on GitHub)
 
-`index.md` overview, `contract.md`, `relay.md` (API and error codes), `sdk.md`, `leather-integration.md`, `bitflow-integration.md`, `operator-guide.md`, `sponsors.json`, `disclaimer.md`, `research-findings.md`, `decisions-log.md`. Plain markdown rendered by GitHub. The repo needs no website: only the demo app, `disclaimer.html` and `sponsors.json` are published, to `https://stx.fan/zero_to/sbtc-gas/` by `scripts/publish-stx-fan.sh`.
+`index.md` overview, `contract.md`, `relay.md` (API and error codes), `sdk.md`, `leather-integration.md`, `bitflow-integration.md`, `operator-guide.md`, `sponsors.json`, `disclaimer.md`, `research-findings.md`, `decisions-log.md`. Plain markdown rendered by GitHub. The repo needs no website: only the demo app, `disclaimer.html` and `sponsors.json` are published, to `https://stx.fan/zero_to/gas/` by `scripts/publish-stx-fan.sh`.
 
 ## 9. Build order (TDD where the skills say)
 

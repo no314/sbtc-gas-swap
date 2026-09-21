@@ -1,3 +1,5 @@
 node_modules/
 dist/
 screenshots/
+# copied from docs/sponsors.json by the sponsors script before dev and build
+public/sponsors.json

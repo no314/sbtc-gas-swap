@@ -1,7 +1,9 @@
 // One gate for every read and every relay call. The SDK's ChainClient and RelayClient do the
 // work (spacing, retries, ranking, submission); this module only decides which fetch they use.
 // Live mode: the read API from ?api= (default api.hiro.so, reads only, never what the wallet
-// signs) and the relays listed in the docs site's sponsors.json. Fixture mode (?fixture=<name>):
+// signs) and the relays listed in the sponsors.json published next to this page. The app ships
+// its own copy of that file, so it reads it relative to its own URL and the hosting path never
+// matters; integrators without a copy use the SDK's DEFAULT_SPONSORS_URL instead. Fixture mode (?fixture=<name>):
 // every response comes from src/fixtures.js through the clients' injected fetch, so the whole
 // app runs with zero network requests and the harness asserts exactly that.
 import { ChainClient, RelayClient, DEFAULT_SPONSORS_URL } from "@no314/sbtc-gas-swap";
@@ -24,6 +26,6 @@ export function makeClients(api, fixtureName) {
   return {
     fixture: null, fixtureName: null,
     chain: new ChainClient({ baseUrl: api || API_DEFAULT }),
-    relay: new RelayClient(),
+    relay: new RelayClient({ sponsorsUrl: new URL("./sponsors.json", window.location.href).href }),
   };
 }

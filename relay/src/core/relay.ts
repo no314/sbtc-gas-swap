@@ -93,7 +93,7 @@ export interface RelayInfo {
   // What each tier opens at and how fast it is bumped, so a user can see what the tier buys.
   feePolicy: {
     firstBid: Record<TierName, string>;
-    rbfAfterSeconds: number;
+    rbfAfterSeconds: Record<TierName, number>;
     rbfBumpBips: string;
     maxFee: Record<TierName, string>;
   };
@@ -131,7 +131,7 @@ export function planRbf(pending: PendingRecord[], noncesBySponsor: Record<string
   for (const r of pending) {
     const n = noncesBySponsor[r.sponsor];
     if (n && n.lastExecuted !== null && BigInt(n.lastExecuted) >= r.sponsorNonce) { plan.done.push(r); continue; }
-    if (now - r.broadcastAt < policy.rbfAfterSeconds * 1000) continue;
+    if (now - r.broadcastAt < policy.rbfAfterSeconds[r.tier] * 1000) continue;
     const newFee = bumpFee(r.fee, TIERS[r.tier], policy.rbfBumpBips);
     if (newFee === null) plan.stuck.push(r); else plan.bump.push({ record: r, newFee });
   }

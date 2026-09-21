@@ -81,7 +81,7 @@ export const DLMM = {
 // Relay policy defaults. Operators override through environment (see operator guide).
 export const POLICY: {
   feeFactor: number; minFeePerByte: bigint; feeFloorUstx: bigint; maxPendingPerKey: number; perOriginPerHour: number;
-  globalPerHour: number; rbfAfterSeconds: number; rbfBumpBips: bigint; estimatedLengthBytes: number;
+  globalPerHour: number; rbfAfterSeconds: Record<TierName, number>; rbfBumpBips: bigint; estimatedLengthBytes: number;
   firstBid: { multipleOfLow: Record<TierName, number>; pctOfTier: Record<TierName, number> };
 } = {
   feeFactor: 1.0,                 // Werner's dial: multiplies the node estimate
@@ -90,7 +90,10 @@ export const POLICY: {
   maxPendingPerKey: 20,           // network chaining limit is 25; keep headroom
   perOriginPerHour: 5,
   globalPerHour: 500,
-  rbfAfterSeconds: 10 * 60,       // one sweep interval: a pending transaction is bumped every 10 minutes
+  // How long a transaction may sit before its fee is bumped. Low and mid wait 30 minutes: low bids
+  // the market rate and mid already opens high. High waits one sweep interval, so it reaches the
+  // user's full tier as soon as possible; the margin there is meant for the miner, not the sponsor.
+  rbfAfterSeconds: { low: 30 * 60, mid: 30 * 60, high: 10 * 60 },
   rbfBumpBips: 1_000n,            // +10 percent per bump, never above the tier
   // Opening bid per tier. Low bids the market rate. Mid opens at twice the low bid. High opens at
   // 80 percent of the tier, which leaves three RBF bumps inside the tier before it is stuck.

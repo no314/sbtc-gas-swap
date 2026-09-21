@@ -7,7 +7,8 @@ export interface RelayEnv {
   SPONSOR_KEY_LOW?: string; SPONSOR_KEY_MID?: string; SPONSOR_KEY_HIGH?: string;
   HIRO_API_KEY?: string; STACKS_API_URL?: string; FEE_FACTOR?: string; FEE_FLOOR_USTX?: string;
   PER_ORIGIN_PER_HOUR?: string; GLOBAL_PER_HOUR?: string; MAX_PENDING_PER_KEY?: string; TERMS_URL?: string; CONTRACT_ID?: string;
-  MID_FIRST_BID_MULTIPLE?: string; HIGH_FIRST_BID_PCT?: string; RBF_AFTER_SECONDS?: string;
+  MID_FIRST_BID_MULTIPLE?: string; HIGH_FIRST_BID_PCT?: string;
+  RBF_AFTER_SECONDS_LOW?: string; RBF_AFTER_SECONDS_MID?: string; RBF_AFTER_SECONDS_HIGH?: string;
 }
 
 export function keysFromEnv(env: RelayEnv): Record<TierName, SponsorKey> {
@@ -26,7 +27,11 @@ export function policyFromEnv(env: RelayEnv): Policy {
     perOriginPerHour: env.PER_ORIGIN_PER_HOUR ? Number(env.PER_ORIGIN_PER_HOUR) : POLICY.perOriginPerHour,
     globalPerHour: env.GLOBAL_PER_HOUR ? Number(env.GLOBAL_PER_HOUR) : POLICY.globalPerHour,
     maxPendingPerKey: env.MAX_PENDING_PER_KEY ? Number(env.MAX_PENDING_PER_KEY) : POLICY.maxPendingPerKey,
-    rbfAfterSeconds: env.RBF_AFTER_SECONDS ? Number(env.RBF_AFTER_SECONDS) : POLICY.rbfAfterSeconds,
+    rbfAfterSeconds: {
+      low: env.RBF_AFTER_SECONDS_LOW ? Number(env.RBF_AFTER_SECONDS_LOW) : POLICY.rbfAfterSeconds.low,
+      mid: env.RBF_AFTER_SECONDS_MID ? Number(env.RBF_AFTER_SECONDS_MID) : POLICY.rbfAfterSeconds.mid,
+      high: env.RBF_AFTER_SECONDS_HIGH ? Number(env.RBF_AFTER_SECONDS_HIGH) : POLICY.rbfAfterSeconds.high,
+    },
     firstBid: {
       multipleOfLow: {
         ...POLICY.firstBid.multipleOfLow,

@@ -2,7 +2,7 @@
 
 A user who bridged BTC to sBTC holds an asset that cannot pay Stacks fees. This project lets that user swap sBTC to STX in one transaction whose network fee is paid by a sponsor, and the sponsor is repaid inside the same transaction. No subsidy, no eligibility server, no hardcoded sponsor: the contract pays whoever co-signed (`tx-sponsor?`), so any operator can run a relay and it funds itself from the first swap.
 
-Status: contract deployed to mainnet on 2026-09-06 at block `8930825` ([record](contract.md#deployment)); relay live at `https://sbtc-gas-relay.labs2.workers.dev`; first sponsored swap mined at block `8932782` ([record](contract.md#tests-and-the-tx-sponsor-gap)); demo app and `sponsors.json` published at `https://stx.fan/zero_to/sbtc-gas/`.
+Status: contract deployed to mainnet on 2026-09-06 at block `8930825` ([record](contract.md#deployment)); relay live at `https://sbtc-gas-relay.labs2.workers.dev`; first sponsored swap mined at block `8932782` ([record](contract.md#tests-and-the-tx-sponsor-gap)); demo app and `sponsors.json` published at `https://stx.fan/zero_to/gas/`.
 
 ## How the money moves
 

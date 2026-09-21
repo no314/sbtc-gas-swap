@@ -21,8 +21,11 @@ MAX_PENDING_PER_KEY = "20"
 # tier. Both are floors: a hotter fee market still wins, and neither ever exceeds the tier.
 MID_FIRST_BID_MULTIPLE = "2"
 HIGH_FIRST_BID_PCT = "80"
-RBF_AFTER_SECONDS = "600"
+# Seconds a pending transaction waits before its fee is bumped 10 percent. High is bumped every sweep.
+RBF_AFTER_SECONDS_LOW = "1800"
+RBF_AFTER_SECONDS_MID = "1800"
+RBF_AFTER_SECONDS_HIGH = "600"
 CONTRACT_ID = "SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4.sbtc-gas-swap-v1"
-TERMS_URL = "https://stx.fan/zero_to/sbtc-gas/disclaimer.html"
+TERMS_URL = "https://stx.fan/zero_to/gas/disclaimer.html"
 
 # Secrets (never in this file): wrangler secret put SPONSOR_KEY_LOW | SPONSOR_KEY_MID | SPONSOR_KEY_HIGH | HIRO_API_KEY
