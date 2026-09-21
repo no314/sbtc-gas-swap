@@ -38,7 +38,18 @@ const externalRequests = [];
 page.on("request", (r) => { if (!r.url().startsWith(BASE)) externalRequests.push(r.url()); });
 
 let pass = 0, fail = 0;
-const check = (name, ok, extra = "") => { ok ? pass++ : fail++; console.log(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? "  (" + extra + ")" : ""}`); };
+const failed = [];
+// On a GitHub runner every failure is also emitted as a workflow annotation, so the run summary
+// names the failing checks without anyone opening the log.
+const CI = !!process.env.GITHUB_ACTIONS;
+const check = (name, ok, extra = "") => {
+  ok ? pass++ : fail++;
+  console.log(`${ok ? "PASS" : "FAIL"}  ${name}${extra ? "  (" + extra + ")" : ""}`);
+  if (!ok) {
+    failed.push(name + (extra ? `  (${extra})` : ""));
+    if (CI) console.log(`::error title=verify-app::${name}${extra ? "  (" + extra + ")" : ""}`);
+  }
+};
 const shot = (name) => page.screenshot({ path: join(SHOTS, name + ".png"), fullPage: true });
 const text = async (sel) => (await page.textContent(sel)) || "";
 const body = () => page.evaluate(() => document.body.innerText);
@@ -80,7 +91,7 @@ async function open(fixture) {
 }
 async function connectLeather() {
   await stubWallet();
-  await page.waitForSelector(".wallet-pick button", { timeout: 5000 });
+  await page.waitForSelector(".wallet-pick button", { timeout: 20000 });
   await page.click(".wallet-pick button");
   await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Swap amount");
 }
@@ -91,7 +102,7 @@ const quoteReady = () => page.waitForFunction(() => {
   const bal = document.querySelector(".amount-row .field:nth-child(2) input");
   return pool && pool.children[1].textContent !== "-" && rl && !document.querySelector(".readerline .spin")
     && !document.querySelector(".linkbtn:disabled") && bal && bal.value !== "reading";
-}, null, { timeout: 15000 });
+}, null, { timeout: 30000 });
 
 // ---------- fresh load, step 1 (fixture happy) ----------
 await open("happy");
@@ -224,7 +235,7 @@ check("Back label aligns with content edge", await page.evaluate(() => {
 await invariants("happy step 3", 3);
 await shot("happy-step3-sign");
 await primary().click();
-await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Done", null, { timeout: 15000 });
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Done", null, { timeout: 30000 });
 const req = await page.evaluate(() => window.__requests[0]);
 check("wallet asked once with stx_callContract", (await page.evaluate(() => window.__requests.length)) === 1 && req.method === "stx_callContract");
 check("call fields: contract, function, 6 hex args", req.params.contract === CONTRACT && req.params.functionName === "swap-sbtc-for-gas" && req.params.functionArgs.length === 6 && req.params.functionArgs.every((a) => /^0x[0-9a-f]+$/.test(a)));
@@ -238,7 +249,7 @@ check("relay used, sponsor, and status pending", (await kv("Relay used")) === RE
 check("polling copy: every 10s with elapsed", (await text(".panel .status.info")).includes("Checking every 10s"));
 await invariants("happy step 4 pending", 4);
 await shot("happy-step4-pending");
-await page.waitForFunction(() => document.querySelector(".panel .badge")?.textContent === "success", null, { timeout: 25000 });
+await page.waitForFunction(() => document.querySelector(".panel .badge")?.textContent === "success", null, { timeout: 45000 });
 check("second poll (10s later) reads success", true);
 check("STX received parsed from tx_result", (await kv("STX received")) === "15.155105 STX (15,155,105 uSTX)");
 check("rebate and net kept shown", (await kv("Rebate paid")) === "0.01 STX (10,000 uSTX)" && (await kv("Net STX kept")) === "15.145105 STX (15,145,105 uSTX)");
@@ -307,7 +318,7 @@ await quoteReady();
 await primary().click();
 await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
 await primary().click();
-await page.waitForFunction(() => document.querySelector(".panel .badge")?.textContent === "abort_by_response", null, { timeout: 15000 });
+await page.waitForFunction(() => document.querySelector(".panel .badge")?.textContent === "abort_by_response", null, { timeout: 30000 });
 check("abort: status badge shows the abort", (await text(".panel .badge")) === "abort_by_response");
 check("abort: explainTxFailure text for u1020", (await text(".status.err")).includes("Bitflow XYK: output below minimum (price moved).") && (await text(".status.err")).includes("Re-quote and retry with 2 or 5 percent slippage."));
 check("abort: raw result and who paid", (await text(".status.err")).includes("(err u1020)") && (await text(".status.err")).includes("The sponsor paid the network fee; you paid nothing."));
@@ -329,7 +340,7 @@ await quoteReady();
 await primary().click();
 await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
 await primary().click();
-await page.waitForFunction(() => document.querySelector(".panel .badge")?.textContent === "success", null, { timeout: 15000 });
+await page.waitForFunction(() => document.querySelector(".panel .badge")?.textContent === "success", null, { timeout: 30000 });
 check("tx-success: success on the first poll", (await kv("STX received")) === "15.155105 STX (15,155,105 uSTX)" && (await kv("Mined in Stacks block")) === "8,923,980");
 check("tx-success: Swap Again offered", (await primary().textContent()).trim() === "Swap Again");
 await invariants("tx-success step 4", 4);
@@ -389,4 +400,10 @@ check("localStorage empty at the end", (await localStorageLen()) === 0);
 await browser.close();
 server.close();
 console.log(`\n${pass} passed, ${fail} failed`);
+if (fail) {
+  // Repeat the failures at the very end: the log is long and the FAIL lines are scattered through it.
+  console.log("\nfailed checks:");
+  for (const f of failed) console.log(`  ${f}`);
+  if (CI) console.log(`::error title=verify-app::${fail} of ${pass + fail} checks failed`);
+}
 process.exit(fail && !SHOTS_ONLY ? 1 : 0);

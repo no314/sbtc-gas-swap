@@ -31,8 +31,8 @@ echo "==> verify the built app against fixtures"
 
 echo "==> stage into $DEST"
 mkdir -p "$DEST"
-# deploy.html is a local-only Ledger deploy page: never published.
-rsync -a --delete --exclude deploy.html "$REPO/app/dist/" "$DEST/"
+# deploy.html is a local-only Ledger deploy page: neither it nor its chunk is published.
+rsync -a --delete --exclude deploy.html --exclude "assets/deploy-*.js" "$REPO/app/dist/" "$DEST/"
 cp "$REPO/docs/sponsors.json" "$DEST/sponsors.json"
 
 echo

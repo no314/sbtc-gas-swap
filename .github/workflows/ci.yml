@@ -34,4 +34,5 @@ jobs:
           export CHROMIUM=$(node -e "console.log(require('playwright-core').chromium.executablePath())")
           npm run verify
       - uses: actions/upload-artifact@v4
+        if: always()   # the screenshots are most useful when the run failed
         with: { name: screenshots, path: app/screenshots }
