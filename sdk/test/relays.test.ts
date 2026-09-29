@@ -9,7 +9,7 @@ import { readFileSync } from "node:fs";
 const info = (url: string, minTier: RelayInfo["minTier"], mid = "5000"): RelayInfo => ({
   url, contract: "SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4.sbtc-gas-swap-v1", network: "mainnet",
   sponsors: { low: "SP1", mid: "SP2", high: "SP3" }, minTier, feeEstimate: { low: "3000", mid, high: "9000" },
-  feeFactor: 1, maxPerOriginPerHour: 5, version: "0.1.0",
+  maxPerOriginPerHour: 5, version: "0.1.0",
 });
 
 function fakeRelays(behaviour: Record<string, (path: string, init?: RequestInit) => Response>) {

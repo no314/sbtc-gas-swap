@@ -15,13 +15,14 @@ const clients = (name) => {
 
 test("happy: every pool answers and Velar wins for 5,000 sats", async () => {
   const { chain } = clients("happy");
-  const q = await quoteAllPools(chain, { amountSats: 5000n });
+  // The app quotes with its own integrator fee (1 percent), so the fixture must too.
+  const q = await quoteAllPools(chain, { amountSats: 5000n, integratorBips: 100n });
   assert.equal(q.unavailable.length, 0);
   assert.equal(q.quotes.length, 3);
   assert.equal(q.best.poolId, 2);
   assert.equal(q.fees.serviceFee, 25n);
-  assert.equal(q.fees.integratorFee, 0n);
-  assert.equal(q.fees.net, 4975n);
+  assert.equal(q.fees.integratorFee, 50n);
+  assert.equal(q.fees.net, 4925n);
   // The recorded success tuple carries exactly this quote (no price movement in fixture mode).
   const received = parseReceived(FIXTURES.happy.txSequence[1].tx_result.repr);
   assert.equal(received, q.best.out, `fixture received ${received} vs quote ${q.best.out}`);

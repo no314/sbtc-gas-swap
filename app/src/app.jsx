@@ -1,4 +1,4 @@
-// App shell: header with the contract principal and the no-seed-phrase statement, wallet
+// App shell: header with the contract principal, wallet
 // connect, the URL contract, in-memory flow state (zero persistence), and the step rail.
 // Mainnet only: there is no network switch, so the mainnet accent stays.
 import React, { useState, useEffect, useMemo, useRef } from "react";
@@ -37,7 +37,6 @@ function SiteFoot() {
   return <div className="site-foot">
     <a href={REPO} target="_blank" rel="noopener">Github Repository</a>
     <a href="./disclaimer.html" className="disclaimer-link">Disclaimer</a>
-    <a href="https://stx.fan/signer" target="_blank" rel="noopener">Check out other sidekicks</a>
     <span className="spacer"></span>
     <span className="reset-wrap" onClick={(e) => e.stopPropagation()}>
       {pop ? <span className="reset-pop">
@@ -174,7 +173,7 @@ export function App() {
     <header className="hdr"><div className="wrap">
       <div className="titles"><h1>sBTC to Stacks gas</h1><span className="netpill">Mainnet</span></div>
       <div className="right">
-        <span className="no-secrets" title={CONTRACT_ID}><i className="ph ph-shield-check"></i>Never asks for a seed phrase<span className="sep"></span>contract <span className="mono hdr-contract">{shortPrincipal(CONTRACT_ID)}</span></span>
+        <span className="no-secrets" title={CONTRACT_ID}><i className="ph ph-file-code"></i>contract <span className="mono hdr-contract">{shortPrincipal(CONTRACT_ID)}</span></span>
         <div className="wallet-menu" onClick={(e) => e.stopPropagation()}>
           {account
             ? <Btn kind="secondary" onClick={() => setMenuOpen((o) => !o)}>{bnsName || shortPrincipal(account)} <i className="ph ph-caret-down"></i></Btn>

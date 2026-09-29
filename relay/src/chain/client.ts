@@ -14,7 +14,6 @@ export function makeRelayChain(o: { baseUrl?: string; apiKey?: string; fetch?: t
       if (poolId === 2) return quoteVelar(await client.readVelarState(), n);
       return quoteDlmm(await client.readDlmmState(3), n);
     },
-    estimateFee: (payloadHex, len) => client.estimateFee(payloadHex, len),
     broadcast: (hex) => client.broadcast(hex),
   };
 }

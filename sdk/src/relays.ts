@@ -9,7 +9,7 @@ export interface RelayInfo {
   sponsors: Record<TierName, string>;
   minTier: TierName;
   feeEstimate: Record<TierName, string>;
-  feeFactor: number;
+  feePolicy?: { firstBid: Record<TierName, string>; rbfAfterSeconds: Record<TierName, number>; rbfBumpBips: string; maxFee: Record<TierName, string> };
   maxPerOriginPerHour: number;
   termsUrl?: string;
   version: string;
@@ -94,4 +94,4 @@ export class RelayClient {
   }
 }
 
-const FINAL_CODES = new Set(["NOT_SPONSORED_AUTH", "WRONG_NETWORK", "WRONG_CONTRACT", "WRONG_FUNCTION", "BAD_ARGS", "UNKNOWN_POOL", "BAD_TIER", "MIN_OUT_BELOW_TIER", "BAD_BIPS", "BAD_POST_CONDITIONS", "INSUFFICIENT_SBTC", "MALFORMED"]);
+const FINAL_CODES = new Set(["NOT_SPONSORED_AUTH", "WRONG_NETWORK", "WRONG_CONTRACT", "WRONG_FUNCTION", "BAD_ARGS", "UNKNOWN_POOL", "BAD_TIER", "MIN_OUT_BELOW_TIER", "BAD_BIPS", "BAD_POST_CONDITIONS", "INSUFFICIENT_SBTC", "MALFORMED", "BAD_SIGNATURE"]);

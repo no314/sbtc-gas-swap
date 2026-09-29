@@ -42,6 +42,13 @@ export function fmtStx(ustx) {
   return `${group(whole)}${f ? "." + f : ""} STX`;
 }
 export const fmtUstx = (ustx) => `${group(ustx)} uSTX`;
+// Ledger cells: digits only, the unit is stated once in the ledger header.
+export const fmtSatsNum = (sats) => group(sats);
+// Six fixed decimals so a column of STX figures aligns on the point.
+export function fmtStxNum(ustx) {
+  const u = BigInt(ustx);
+  return `${group(u / USTX_PER_STX)}.${(u % USTX_PER_STX).toString().padStart(6, "0")}`;
+}
 export const fmtStxBoth = (ustx) => `${fmtStx(ustx)} (${fmtUstx(ustx)})`;
 export function fmtBips(bips) {
   const b = BigInt(bips);
@@ -71,12 +78,59 @@ export function parseReceived(repr) {
   return m ? BigInt(m[1]) : null;
 }
 
+// The whole ok tuple the contract returns: integrator-fee, pool-id, rebate, received, service-fee.
+// All five must be present or the result is not this contract's; then null, never a partial.
+export function parseSwapResult(repr) {
+  const s = String(repr ?? "");
+  if (!s.startsWith("(ok (tuple")) return null;
+  const field = (name) => { const m = s.match(new RegExp(`\\(${name} u(\\d+)\\)`)); return m ? BigInt(m[1]) : null; };
+  const out = { received: field("received"), rebate: field("rebate"), serviceFee: field("service-fee"), integratorFee: field("integrator-fee"), poolId: field("pool-id") };
+  return Object.values(out).every((v) => v !== null) ? out : null;
+}
+
+// The sBTC input is not in the result tuple; it is the call's first argument, "u<sats>".
+export function parseSwapInput(tx) {
+  const arg = tx && tx.contract_call && Array.isArray(tx.contract_call.function_args) ? tx.contract_call.function_args[0] : null;
+  const m = arg && typeof arg.repr === "string" ? arg.repr.match(/^u(\d+)$/) : null;
+  return m ? BigInt(m[1]) : null;
+}
+
 // One classification for the poll loop. A missing or pending transaction is pending;
-// success carries the parsed received amount (null when unparseable, never 0).
+// success carries the parsed received amount (null when unparseable, never 0), the full result
+// tuple and the input amount when they parse, so the Done page needs nothing from the quote.
 export function txOutcome(tx) {
   if (!tx || !tx.tx_status || tx.tx_status === "pending") return { kind: "pending" };
-  if (tx.tx_status === "success") return { kind: "success", received: parseReceived(tx.tx_result && tx.tx_result.repr), blockHeight: tx.block_height };
+  if (tx.tx_status === "success") {
+    const repr = tx.tx_result && tx.tx_result.repr;
+    return { kind: "success", received: parseReceived(repr), result: parseSwapResult(repr), amountSats: parseSwapInput(tx), blockHeight: tx.block_height };
+  }
   return { kind: "abort", status: tx.tx_status, repr: tx.tx_result && tx.tx_result.repr };
+}
+
+// The two ledgers on the Done page, from chain data only. sBTC in sats: input, minus the two
+// sBTC fees, equals what entered the pool. STX in uSTX: what the pool paid, minus the network
+// fee to the sponsor, equals what the user keeps. Each column sums to its own total; the pool
+// swap between them is on the review step and is deliberately not a row here.
+export function ledgerLines(outcome) {
+  if (!outcome || outcome.kind !== "success" || !outcome.result || outcome.amountSats == null) return null;
+  const r = outcome.result, a = outcome.amountSats;
+  return {
+    sbtc: {
+      rows: [
+        { label: "Swap amount", sign: "", value: a },
+        { label: "Default provider fee", sign: "-", value: r.serviceFee },
+        { label: "Integrator fee (stx.fan)", sign: "-", value: r.integratorFee },
+      ],
+      total: { label: "Into the pool", value: a - r.serviceFee - r.integratorFee },
+    },
+    stx: {
+      rows: [
+        { label: "From the pool", sign: "", value: r.received },
+        { label: "Network fee (sponsor)", sign: "-", value: r.rebate },
+      ],
+      total: { label: "You keep", value: r.received - r.rebate },
+    },
+  };
 }
 
 export const normTxid = (t) => String(t ?? "").replace(/^0x/i, "").toLowerCase();

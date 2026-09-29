@@ -8,7 +8,7 @@ const relayFetch = (async (url: string) => {
   if (url.endsWith("/v1/info")) return new Response(JSON.stringify({
     contract: "SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4.sbtc-gas-swap-v1", network: "mainnet",
     sponsors: { low: "SP1", mid: "SP2", high: "SP3" }, minTier: "low", feeEstimate: { low: "3000", mid: "5000", high: "9000" },
-    feeFactor: 1, maxPerOriginPerHour: 5, version: "0.1.0",
+    maxPerOriginPerHour: 5, version: "0.1.0",
   }));
   return new Response("{}", { status: 404 });
 }) as unknown as typeof fetch;

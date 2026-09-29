@@ -5,9 +5,9 @@ import type { Policy, SponsorKey } from "./relay.js";
 
 export interface RelayEnv {
   SPONSOR_KEY_LOW?: string; SPONSOR_KEY_MID?: string; SPONSOR_KEY_HIGH?: string;
-  HIRO_API_KEY?: string; STACKS_API_URL?: string; FEE_FACTOR?: string; FEE_FLOOR_USTX?: string;
-  PER_ORIGIN_PER_HOUR?: string; GLOBAL_PER_HOUR?: string; MAX_PENDING_PER_KEY?: string; TERMS_URL?: string; CONTRACT_ID?: string;
-  MID_FIRST_BID_MULTIPLE?: string; HIGH_FIRST_BID_PCT?: string;
+  HIRO_API_KEY?: string; STACKS_API_URL?: string; TERMS_URL?: string; CONTRACT_ID?: string;
+  OPENING_BID_LOW?: string; OPENING_BID_MID?: string; OPENING_BID_HIGH?: string; MIN_TIER?: string;
+  PER_ORIGIN_PER_HOUR?: string; GLOBAL_PER_HOUR?: string; MAX_PENDING_PER_KEY?: string;
   RBF_AFTER_SECONDS_LOW?: string; RBF_AFTER_SECONDS_MID?: string; RBF_AFTER_SECONDS_HIGH?: string;
 }
 
@@ -20,27 +20,24 @@ export function keysFromEnv(env: RelayEnv): Record<TierName, SponsorKey> {
 }
 
 export function policyFromEnv(env: RelayEnv): Policy {
+  const big = (v: string | undefined, d: bigint) => (v ? BigInt(v) : d);
+  const num = (v: string | undefined, d: number) => (v ? Number(v) : d);
+  const minTier = env.MIN_TIER === "low" || env.MIN_TIER === "mid" || env.MIN_TIER === "high" ? env.MIN_TIER : POLICY.minTier;
   return {
     ...POLICY,
-    feeFactor: env.FEE_FACTOR ? Number(env.FEE_FACTOR) : POLICY.feeFactor,
-    feeFloorUstx: env.FEE_FLOOR_USTX ? BigInt(env.FEE_FLOOR_USTX) : POLICY.feeFloorUstx,
-    perOriginPerHour: env.PER_ORIGIN_PER_HOUR ? Number(env.PER_ORIGIN_PER_HOUR) : POLICY.perOriginPerHour,
-    globalPerHour: env.GLOBAL_PER_HOUR ? Number(env.GLOBAL_PER_HOUR) : POLICY.globalPerHour,
-    maxPendingPerKey: env.MAX_PENDING_PER_KEY ? Number(env.MAX_PENDING_PER_KEY) : POLICY.maxPendingPerKey,
-    rbfAfterSeconds: {
-      low: env.RBF_AFTER_SECONDS_LOW ? Number(env.RBF_AFTER_SECONDS_LOW) : POLICY.rbfAfterSeconds.low,
-      mid: env.RBF_AFTER_SECONDS_MID ? Number(env.RBF_AFTER_SECONDS_MID) : POLICY.rbfAfterSeconds.mid,
-      high: env.RBF_AFTER_SECONDS_HIGH ? Number(env.RBF_AFTER_SECONDS_HIGH) : POLICY.rbfAfterSeconds.high,
+    openingBid: {
+      low: big(env.OPENING_BID_LOW, POLICY.openingBid.low),
+      mid: big(env.OPENING_BID_MID, POLICY.openingBid.mid),
+      high: big(env.OPENING_BID_HIGH, POLICY.openingBid.high),
     },
-    firstBid: {
-      multipleOfLow: {
-        ...POLICY.firstBid.multipleOfLow,
-        mid: env.MID_FIRST_BID_MULTIPLE ? Number(env.MID_FIRST_BID_MULTIPLE) : POLICY.firstBid.multipleOfLow.mid,
-      },
-      pctOfTier: {
-        ...POLICY.firstBid.pctOfTier,
-        high: env.HIGH_FIRST_BID_PCT ? Number(env.HIGH_FIRST_BID_PCT) : POLICY.firstBid.pctOfTier.high,
-      },
+    minTier,
+    perOriginPerHour: num(env.PER_ORIGIN_PER_HOUR, POLICY.perOriginPerHour),
+    globalPerHour: num(env.GLOBAL_PER_HOUR, POLICY.globalPerHour),
+    maxPendingPerKey: num(env.MAX_PENDING_PER_KEY, POLICY.maxPendingPerKey),
+    rbfAfterSeconds: {
+      low: num(env.RBF_AFTER_SECONDS_LOW, POLICY.rbfAfterSeconds.low),
+      mid: num(env.RBF_AFTER_SECONDS_MID, POLICY.rbfAfterSeconds.mid),
+      high: num(env.RBF_AFTER_SECONDS_HIGH, POLICY.rbfAfterSeconds.high),
     },
   };
 }

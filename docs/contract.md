@@ -14,6 +14,8 @@ Mainnet principal: `SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4.sbtc-gas-swap-v1`.
 
 The field names are fixed by the deployed contract and by the SDK types. The names in the right column are the only ones a user should ever read. This document uses the field names because it describes the contract.
 
+One more name, for a payment the user never makes: the **miner fee** is what the sponsor pays the network to have the transaction mined (the `fee` in the sponsor's spending condition, `fee_rate` in the API). It is never called a network fee in user copy, because that name is taken by the tier the user repays. The two are related only by the sponsor's margin: network fee received minus miner fee paid.
+
 ## What one call does
 
 `swap-sbtc-for-gas` runs these steps in order, all with `tx-sender` = user:

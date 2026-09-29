@@ -16,7 +16,6 @@ function deps(): RelayDeps {
       getSbtcBalance: async () => 10_000_000n,
       getNonces: async (a) => ({ lastExecuted: a === USER_ADDRESS ? -1 : 3, lastMempool: null, possibleNext: a === USER_ADDRESS ? 0 : 4, missing: [] }),
       quotePool: async () => ({ out: 90_000_000n, in: 0n }),
-      estimateFee: async () => ({ low: 2_000n, mid: 4_000n, high: 8_000n }),
       broadcast: async () => ({ txid: "cd".repeat(32) }),
     },
   };

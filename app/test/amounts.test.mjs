@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
   parseAmount, fmtSats, fmtBtc, fmtStx, fmtUstx, fmtBoth, pctToBips, bipsToPct, parseSlippagePct,
-  parseReceived, txOutcome, shortTxid, shortPrincipal, fmtBips, fmtStamp,
+  parseReceived, parseSwapResult, parseSwapInput, ledgerLines, txOutcome, shortTxid, shortPrincipal, fmtBips, fmtStamp,
 } from "../src/amounts.js";
 
 test("parseAmount: sats accept digits with grouping, reject fractions and zero", () => {
@@ -70,9 +70,9 @@ test("txOutcome classifies pending, success and aborts without inventing zeros",
   assert.deepEqual(txOutcome(null), { kind: "pending" });
   assert.deepEqual(txOutcome({ tx_status: "pending" }), { kind: "pending" });
   const ok = txOutcome({ tx_status: "success", block_height: 8923990, tx_result: { repr: "(ok (tuple (received u15236789) (rebate u10000)))" } });
-  assert.deepEqual(ok, { kind: "success", received: 15_236_789n, blockHeight: 8923990 });
+  assert.equal(ok.kind, "success"); assert.equal(ok.received, 15_236_789n); assert.equal(ok.blockHeight, 8923990);
   const okNoParse = txOutcome({ tx_status: "success", block_height: 1, tx_result: { repr: "(ok true)" } });
-  assert.deepEqual(okNoParse, { kind: "success", received: null, blockHeight: 1 });
+  assert.equal(okNoParse.kind, "success"); assert.equal(okNoParse.received, null); assert.equal(okNoParse.result, null);
   const abort = txOutcome({ tx_status: "abort_by_response", tx_result: { repr: "(err u1020)" } });
   assert.deepEqual(abort, { kind: "abort", status: "abort_by_response", repr: "(err u1020)" });
   const dropped = txOutcome({ tx_status: "dropped_replace_by_fee" });
@@ -85,4 +85,48 @@ test("short forms keep the hex prefix and a plain ellipsis glyph", () => {
   assert.equal(shortTxid("0x" + t), "0xabababababab…");
   assert.equal(shortPrincipal("SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4"), "SP2BM…SBZ4");
   assert.equal(shortPrincipal("SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4.sbtc-gas-swap-v1"), "SP2BM…SBZ4.sbtc-gas-swap-v1");
+});
+
+// The mined result tuple, field order as the contract emits it. Every ledger figure comes from
+// here or from the call's own arguments, never from the quote.
+const MINED = "(ok (tuple (integrator-fee u10) (pool-id u1) (rebate u1000000) (received u2485366) (service-fee u5)))";
+
+test("parseSwapResult reads all five fields of the ok tuple and refuses anything else", () => {
+  assert.deepEqual(parseSwapResult(MINED), { received: 2_485_366n, rebate: 1_000_000n, serviceFee: 5n, integratorFee: 10n, poolId: 1n });
+  assert.equal(parseSwapResult("(err u1020)"), null);
+  assert.equal(parseSwapResult("(ok true)"), null);
+  // a tuple missing a field is not this contract's result
+  assert.equal(parseSwapResult("(ok (tuple (received u1) (rebate u2)))"), null);
+});
+
+test("parseSwapInput reads the sBTC amount from the call's first argument", () => {
+  const tx = { contract_call: { function_name: "swap-sbtc-for-gas", function_args: [{ name: "amount", repr: "u1000", type: "uint" }, { name: "tier", repr: "u1000000" }] } };
+  assert.equal(parseSwapInput(tx), 1000n);
+  assert.equal(parseSwapInput({ contract_call: { function_args: [] } }), null);
+  assert.equal(parseSwapInput({}), null);
+});
+
+test("ledgerLines lays out both ledgers so each column sums to its total", () => {
+  const tx = { tx_status: "success", block_height: 9040558, tx_result: { repr: MINED }, contract_call: { function_args: [{ repr: "u1000" }] } };
+  const o = txOutcome(tx);
+  const L = ledgerLines(o);
+  // sBTC side: input minus the two fees equals what went into the pool
+  assert.deepEqual(L.sbtc.rows.map((r) => [r.label, r.sign, r.value]), [
+    ["Swap amount", "", 1000n], ["Default provider fee", "-", 5n], ["Integrator fee (stx.fan)", "-", 10n],
+  ]);
+  assert.deepEqual(L.sbtc.total, { label: "Into the pool", value: 985n });
+  assert.equal(L.sbtc.rows[0].value - L.sbtc.rows[1].value - L.sbtc.rows[2].value, L.sbtc.total.value);
+  // STX side: from the pool minus the network fee equals what the user keeps
+  assert.deepEqual(L.stx.rows.map((r) => [r.label, r.sign, r.value]), [
+    ["From the pool", "", 2_485_366n], ["Network fee (sponsor)", "-", 1_000_000n],
+  ]);
+  assert.deepEqual(L.stx.total, { label: "You keep", value: 1_485_366n });
+  assert.equal(L.stx.rows[0].value - L.stx.rows[1].value, L.stx.total.value);
+});
+
+test("ledgerLines is null when the result or the input did not parse", () => {
+  assert.equal(ledgerLines(txOutcome({ tx_status: "success", block_height: 1, tx_result: { repr: "(ok true)" } })), null);
+  assert.equal(ledgerLines(txOutcome({ tx_status: "pending" })), null);
+  // result present but no call args (an unusual API answer): no ledger rather than a wrong one
+  assert.equal(ledgerLines(txOutcome({ tx_status: "success", block_height: 1, tx_result: { repr: MINED } })), null);
 });

@@ -59,6 +59,12 @@ describe("verifySponsoredSwap accepts", () => {
 });
 
 describe("verifySponsoredSwap rejects", () => {
+  test("an origin signature that does not verify: BAD_SIGNATURE, never an exception", async () => {
+    const tx = await buildUserSignedSwap(GOOD);
+    const sig = (tx.auth.spendingCondition as any).signature.data as string;
+    (tx.auth.spendingCondition as any).signature.data = sig.slice(0, 20) + (sig[20] === "a" ? "b" : "a") + sig.slice(21);
+    await assert.rejects(verifySponsoredSwap(tx.serialize()), (e: any) => e instanceof RelayError && e.code === "BAD_SIGNATURE");
+  });
   test("malformed hex", async () => {
     await rejects(verify("00ff"), "MALFORMED");
     await rejects(verify("zz"), "MALFORMED");
