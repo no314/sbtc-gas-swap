@@ -13,7 +13,7 @@
 //     served as /v2/contracts/source; its structure hash is the SDK's PINNED_STRUCTURE_HASH.
 // SYNTHETIC (placeholders the app never validates cryptographically):
 //   the user principal and its sBTC balance, DLMM per-bin balances and bin factors, relay URLs,
-//   sponsor addresses, fee estimates, every txid, signed hex, nonces, block heights of the
+//   sponsor addresses, opening bids, every txid, signed hex, nonces, block heights of the
 //   swap transaction, and the tx_result tuples (their arithmetic is consistent with the quote).
 import {
   cvToHex, responseOkCV, tupleCV, uintCV, intCV, boolCV, someCV, listCV,
@@ -56,19 +56,21 @@ const relayInfo = (minTier) => ({
   network: "mainnet",
   sponsors: SPONSORS,
   minTier,
-  feeEstimate: { low: "3200", mid: "3200", high: "3200" },
-  feeFactor: 1,
+  feeEstimate: { low: "3000", mid: "6000", high: "800000" },
   maxPerOriginPerHour: 5,
   termsUrl: "./disclaimer.html",
   version: "0.1.0",
 });
 
 // A mined swap of 5,000 sats through the Velar pool (best at the recorded reserves), tier low.
-const SUCCESS_RESULT = "(ok (tuple (integrator-fee u0) (pool-id u2) (rebate u10000) (received u15155105) (service-fee u25)))";
+const SUCCESS_RESULT = "(ok (tuple (integrator-fee u50) (pool-id u2) (rebate u10000) (received u15002342) (service-fee u25)))";
 const txBody = (status, repr, extra = {}) => ({
   tx_id: "0x" + FIXTURE_TXID, tx_status: status, tx_type: "contract_call",
   sender_address: FIXTURE_USER, sponsored: true, sponsor_address: SPONSORS.low,
   fee_rate: "3200", nonce: 5,
+  // The Done page reads the sBTC input from the call's first argument, as the API returns it.
+  contract_call: { contract_id: "SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4.sbtc-gas-swap-v1", function_name: "swap-sbtc-for-gas",
+    function_args: [{ name: "amount", type: "uint", repr: "u5000" }, { name: "tier", type: "uint", repr: "u10000" }] },
   ...(repr ? { tx_result: { hex: "0x", repr } } : {}),
   ...extra,
 });

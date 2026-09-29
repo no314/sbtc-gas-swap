@@ -12,16 +12,17 @@ id = "52ed87abafb440feb9b6ce7eb563858a"
 
 [vars]
 STACKS_API_URL = "https://api.hiro.so"
-FEE_FACTOR = "1.0"
-FEE_FLOOR_USTX = "3000"
+# Opening bid per tier in uSTX. No fee estimator: each tier opens here and the sweep bumps it
+# 10 percent on the tier's schedule, never above the tier the user repays.
+OPENING_BID_LOW = "3000"
+OPENING_BID_MID = "6000"
+OPENING_BID_HIGH = "800000"
+# The lowest tier this relay sponsors. A policy, not an estimate.
+MIN_TIER = "low"
 PER_ORIGIN_PER_HOUR = "5"
 GLOBAL_PER_HOUR = "500"
 MAX_PENDING_PER_KEY = "20"
-# Opening bid per tier. Mid opens at this multiple of the low bid; high opens at this percent of its
-# tier. Both are floors: a hotter fee market still wins, and neither ever exceeds the tier.
-MID_FIRST_BID_MULTIPLE = "2"
-HIGH_FIRST_BID_PCT = "80"
-# Seconds a pending transaction waits before its fee is bumped 10 percent. High is bumped every sweep.
+# Seconds a pending transaction waits before its fee is bumped. High is bumped every sweep.
 RBF_AFTER_SECONDS_LOW = "1800"
 RBF_AFTER_SECONDS_MID = "1800"
 RBF_AFTER_SECONDS_HIGH = "600"

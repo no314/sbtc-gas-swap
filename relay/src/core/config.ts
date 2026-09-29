@@ -79,31 +79,29 @@ export const DLMM = {
 } as const;
 
 // Relay policy defaults. Operators override through environment (see operator guide).
+// There is no fee estimator. The node's estimate is not a market price: a handful of mispriced
+// mempool transactions pull its middle and high values up by orders of magnitude (observed
+// 2026-09-29: 17 transactions in the mempool, contract-call p75 of 1051 STX, estimates of
+// 632 / 632717 / 712364 uSTX for a swap that clears at 3000). A relay that trusted it refused every
+// user. Instead each tier opens at a fixed bid and the replace-by-fee ladder climbs on the tier's
+// schedule, never above the tier the user repays. Per-tier sponsor keys keep the queues apart.
 export const POLICY: {
-  feeFactor: number; minFeePerByte: bigint; feeFloorUstx: bigint; maxPendingPerKey: number; perOriginPerHour: number;
-  globalPerHour: number; rbfAfterSeconds: Record<TierName, number>; rbfBumpBips: bigint; estimatedLengthBytes: number;
-  firstBid: { multipleOfLow: Record<TierName, number>; pctOfTier: Record<TierName, number> };
+  openingBid: Record<TierName, bigint>; minTier: TierName; minFeePerByte: bigint; maxPendingPerKey: number;
+  perOriginPerHour: number; globalPerHour: number; rbfAfterSeconds: Record<TierName, number>; rbfBumpBips: bigint;
 } = {
-  feeFactor: 1.0,                 // Werner's dial: multiplies the node estimate
+  // Opening bid per tier, uSTX. Low opens at what clears within a block today. Mid opens at twice
+  // that. High opens at 80 percent of its tier, which leaves three bumps inside the tier.
+  openingBid: { low: 3_000n, mid: 6_000n, high: 800_000n },
+  minTier: "low",                 // the lowest tier this operator sponsors; a policy, not an estimate
   minFeePerByte: 1n,              // network admission floor, uSTX per byte
-  feeFloorUstx: 3_000n,           // never bid below this; clears within a block today
   maxPendingPerKey: 20,           // network chaining limit is 25; keep headroom
   perOriginPerHour: 5,
   globalPerHour: 500,
-  // How long a transaction may sit before its fee is bumped. Low and mid wait 30 minutes: low bids
-  // the market rate and mid already opens high. High waits one sweep interval, so it reaches the
-  // user's full tier as soon as possible; the margin there is meant for the miner, not the sponsor.
+  // How long a transaction may sit before its fee is bumped 10 percent. Low and mid wait 30 minutes.
+  // High waits one sweep interval, so it reaches the user's full tier as soon as possible; the
+  // margin there is meant for the miner, not the sponsor.
   rbfAfterSeconds: { low: 30 * 60, mid: 30 * 60, high: 10 * 60 },
   rbfBumpBips: 1_000n,            // +10 percent per bump, never above the tier
-  // Opening bid per tier. Low bids the market rate. Mid opens at twice the low bid. High opens at
-  // 80 percent of the tier, which leaves three RBF bumps inside the tier before it is stuck.
-  firstBid: {
-    multipleOfLow: { low: 1, mid: 2, high: 1 },
-    pctOfTier: { low: 0, mid: 0, high: 80 },
-  },
-  // Runtime cost per pool branch for fee estimation when the node has no estimate yet.
-  // Mock-based lower bounds from clarinet costs; replaced by mainnet observations.
-  estimatedLengthBytes: 420,
 };
 
 export const ERROR_CODES = [
@@ -125,6 +123,7 @@ export const ERROR_CODES = [
   "SPONSOR_BUSY",
   "BROADCAST_FAILED",
   "MALFORMED",
+  "BAD_SIGNATURE",
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 

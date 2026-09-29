@@ -19,6 +19,8 @@ const RELAY: Record<string, Explanation> = {
   RATE_LIMITED: { title: "Too many requests from this address.", action: "Wait an hour or use another relay.", retryable: true },
   SPONSOR_BUSY: { title: "The sponsor key for this tier has too many pending transactions.", action: "Retry in a few minutes or choose another tier or relay.", retryable: true },
   BROADCAST_FAILED: { title: "The node rejected the sponsored transaction.", action: "Retry; if it repeats, the relay reports the node's reason.", retryable: true },
+  BAD_SIGNATURE: { title: "The wallet's signature does not verify.", action: "The signed bytes do not match the signing account. Reconnect the wallet and sign again; if it repeats, the wallet is signing sponsored transactions incorrectly.", retryable: false },
+  INTERNAL: { title: "The relay hit an error while processing this transaction.", action: "The relay's message names the step. Retry; if it repeats, report the message to the relay operator.", retryable: true },
   RELAY_UNREACHABLE: { title: "The relay did not answer.", action: "Another relay is tried automatically; retry later if none answers.", retryable: true },
   MALFORMED: { title: "The transaction bytes could not be read.", action: "Rebuild the transaction with the SDK.", retryable: false },
 };

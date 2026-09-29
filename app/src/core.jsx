@@ -6,8 +6,14 @@ import React, { useState, useEffect, useRef } from "react";
 import { CONTRACT, TIERS } from "@no314/sbtc-gas-swap";
 
 export const CONTRACT_ID = `${CONTRACT.address}.${CONTRACT.name}`;
+// This app is itself an integrator: 1 percent of the sBTC input (100 bips, the contract maximum)
+// is paid in sBTC to this principal inside the swap. The quote, the review screen and the
+// post-condition summary all derive from these two values.
+export const INTEGRATOR = "SP3PCJ68JW050YKQ9106JP11TXWS46163HX7NG6XH";
+export const INTEGRATOR_BIPS = 100n;
 export const DOCS = "https://github.com/no314/sbtc-gas-swap/blob/main/docs";
-export const REPO = "https://github.com/stackslabs/sbtc-gas-swap";
+// The footer points at where this page is published, not at the SDK source.
+export const REPO = "https://github.com/no314/stx-fan/tree/main/zero_to/gas";
 export const SBTC_BRIDGE = "https://sbtc.stacks.co";
 export const TIER_LIST = ["low", "mid", "high"].map((k) => ({ key: k, ustx: TIERS[k] }));
 

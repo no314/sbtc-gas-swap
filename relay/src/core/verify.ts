@@ -68,6 +68,15 @@ export async function verifySponsoredSwap(hex: string): Promise<VerifiedSwap> {
   const originAddress = addressToString(addressFromVersionHash(AddressVersion.MainnetSingleSig, origin.signer));
   const originNonce = BigInt(origin.nonce);
 
+  // The origin signature must verify against the origin's own key over the sponsored sighash.
+  // A wallet that signed a different hash (or the wrong key) would otherwise surface as an
+  // exception deep inside sponsorTransaction, reported as INTERNAL instead of a verdict.
+  try {
+    tx.verifyOrigin();
+  } catch (e) {
+    throw new RelayError("BAD_SIGNATURE", `origin signature does not verify for ${originAddress}: ${(e as Error).message}`);
+  }
+
   if (tx.payload.payloadType !== PayloadType.ContractCall) {
     throw new RelayError("WRONG_CONTRACT", "payload is not a contract call");
   }

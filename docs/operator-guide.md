@@ -26,7 +26,7 @@ npm ci
 npm test
 ```
 
-Expect: `# pass 53`, `# fail 0`.
+Expect: `# pass 59`, `# fail 0`.
 
 ### 2. Log in to Cloudflare from the terminal
 
@@ -69,9 +69,9 @@ Each command asks for the value; paste it and press Enter. The terminal prints `
 
 ### 7. Check the public settings
 
-In `relay/wrangler.toml` under `[vars]`: `FEE_FACTOR = "1.0"`, `FEE_FLOOR_USTX = "3000"`, `PER_ORIGIN_PER_HOUR = "5"`, `GLOBAL_PER_HOUR = "500"`, `MAX_PENDING_PER_KEY = "20"`, `MID_FIRST_BID_MULTIPLE = "2"`, `HIGH_FIRST_BID_PCT = "80"`, `RBF_AFTER_SECONDS_LOW = "1800"`, `RBF_AFTER_SECONDS_MID = "1800"`, `RBF_AFTER_SECONDS_HIGH = "600"`, `CONTRACT_ID`, `TERMS_URL`. Leave the defaults for the first deploy. `CONTRACT_ID` must be the deployed contract; see [contract.md](contract.md#deployment).
+In `relay/wrangler.toml` under `[vars]`: `OPENING_BID_LOW = "3000"`, `OPENING_BID_MID = "6000"`, `OPENING_BID_HIGH = "800000"`, `MIN_TIER = "low"`, `PER_ORIGIN_PER_HOUR = "5"`, `GLOBAL_PER_HOUR = "500"`, `MAX_PENDING_PER_KEY = "20"`, `RBF_AFTER_SECONDS_LOW = "1800"`, `RBF_AFTER_SECONDS_MID = "1800"`, `RBF_AFTER_SECONDS_HIGH = "600"`, `CONTRACT_ID`, `TERMS_URL`. Leave the defaults for the first deploy. `CONTRACT_ID` must be the deployed contract; see [contract.md](contract.md#deployment).
 
-Those five set what a tier buys. Low bids the market rate. Mid opens at twice the low bid. High opens at 80 percent of its tier. A pending transaction is bumped 10 percent after the tier's wait: 30 minutes for low and mid, 10 minutes (every sweep) for high, so high reaches the user's full tier within half an hour. Raising `HIGH_FIRST_BID_PCT` to `100` makes high bid its full 1 STX immediately and leaves no room for a replacement, so the transaction can only wait. Full derivation in [relay.md](relay.md#fee-policy).
+The relay never asks the node for a fee estimate. Each tier opens at its `OPENING_BID_*` in uSTX and is bumped 10 percent after the tier's wait: 30 minutes for low and mid, 10 minutes (every sweep) for high, so high reaches the user's full tier within half an hour. Setting an opening bid at or above the tier makes that tier bid the full tier immediately and leaves no room for a replacement. `MIN_TIER` refuses the brackets below it. Full derivation in [relay.md](relay.md#fee-policy).
 
 ### 8. Deploy
 
@@ -89,7 +89,7 @@ curl https://sbtc-gas-relay.<subdomain>.workers.dev/healthz
 curl https://sbtc-gas-relay.<subdomain>.workers.dev/v1/info
 ```
 
-`/v1/info` must show your three sponsor addresses under `sponsors`, `minTier` `low`, and `feeEstimate` values between `3000` and the tier (today: about `3000` low, `6000` mid, `800000` high). `feePolicy` repeats the opening bids and the bump cadence. If it shows an error about a key, a secret is missing or malformed: repeat step 6 for that name.
+`/v1/info` must show your three sponsor addresses under `sponsors`, `minTier` `low`, and `feeEstimate` equal to your opening bids (`3000` low, `6000` mid, `800000` high with the defaults). `feePolicy` repeats the opening bids and the bump cadence. If it shows an error about a key, a secret is missing or malformed: repeat step 6 for that name.
 
 ### 10. First real swap
 
@@ -109,7 +109,7 @@ Add your URL to [`docs/sponsors.json`](sponsors.json) in a pull request (format 
 
 - `npx wrangler tail` streams requests, errors, and the RBF sweep log line every 10 minutes. Watch the CPU time on `/v1/sponsor` during the first swaps: the free plan allows 10 ms per request; if you see `Exceeded CPU` errors, upgrade to Workers Paid (5 USD per month) in the dashboard. Nothing else changes.
 - Balances: check the three addresses weekly at first. A key that stops growing while `pending` stays high means transactions are stuck; the sweep reports `stuck` in the log.
-- Turn the dial: raise `FEE_FACTOR` in `wrangler.toml` (for example `1.5`) and redeploy when transactions take more than a few blocks; `minTier` rises accordingly and the relay refuses tiers it would lose on. `FEE_FACTOR` lifts every tier's floor; `MID_FIRST_BID_MULTIPLE` and `HIGH_FIRST_BID_PCT` change only what the mid and high tiers open at.
+- Turn the dial: raise the tier's `OPENING_BID_*` in `wrangler.toml` and redeploy when that bracket's transactions sit past their first bump; set `MIN_TIER` to `mid` or `high` to stop sponsoring a bracket. Under sustained congestion the answer is more keys per bracket (one pending transaction per key), not a higher bid; that is a v2 change noted in [relay.md](relay.md#keys-and-nonces).
 - Rotate a key: `npm run keygen`, fund the new address, `wrangler secret put SPONSOR_KEY_<TIER>` with the new key, redeploy, then move the remaining STX off the old address.
 
 ## Publish the demo app and sponsors.json

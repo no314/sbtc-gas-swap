@@ -12,7 +12,7 @@ function keys(): Record<TierName, { privateKey: string; address: string }> {
 }
 
 interface FakeChain extends RelayChain { broadcasts: string[]; badNonceOnce: boolean }
-function fakeChain(o: Partial<{ sbtc: bigint; userNext: number; quote: bigint; estimate: bigint | null; sponsorNext: number }> = {}): FakeChain {
+function fakeChain(o: Partial<{ sbtc: bigint; userNext: number; quote: bigint; sponsorNext: number }> = {}): FakeChain {
   const c: FakeChain = {
     broadcasts: [], badNonceOnce: false,
     getSbtcBalance: async () => o.sbtc ?? 1_000_000n,
@@ -20,7 +20,6 @@ function fakeChain(o: Partial<{ sbtc: bigint; userNext: number; quote: bigint; e
       ? { lastExecuted: (o.userNext ?? 0) - 1, lastMempool: null, possibleNext: o.userNext ?? 0, missing: [] }
       : { lastExecuted: (o.sponsorNext ?? 7) - 1, lastMempool: null, possibleNext: o.sponsorNext ?? 7, missing: [] },
     quotePool: async () => ({ out: o.quote ?? 90_000_000n, in: 0n }),
-    estimateFee: async () => (o.estimate === null ? null : { low: 2_000n, mid: o.estimate ?? 5_000n, high: 9_000n }),
     broadcast: async (hex: string) => {
       if (c.badNonceOnce) { c.badNonceOnce = false; return { error: "transaction rejected", reason: "BadNonce", reason_data: { expected: 8, actual: 7 } }; }
       c.broadcasts.push(hex);
@@ -44,12 +43,13 @@ describe("handleSponsor", () => {
     const r = await handleSponsor(hex, d);
     assert.equal(r.tier, "mid");
     assert.equal(r.sponsor, k.mid.address);
-    // mid opens at twice what low would bid at this estimate (2 x 5000)
-    assert.equal(BigInt(r.fee), 10_000n);
+    // mid opens at its fixed bid; no estimator is consulted
+    assert.equal(BigInt(r.fee), POLICY.openingBid.mid);
+    assert.equal(BigInt(r.fee), 6_000n);
     assert.equal(chain.broadcasts.length, 1);
     const tx = deserializeTransaction(r.sponsoredTx);
     assert.equal(tx.auth.authType, AuthType.Sponsored);
-    assert.equal(BigInt((tx.auth as any).sponsorSpendingCondition.fee), 10_000n);
+    assert.equal(BigInt((tx.auth as any).sponsorSpendingCondition.fee), 6_000n);
     assert.equal(BigInt((tx.auth as any).sponsorSpendingCondition.nonce), 7n);
     assert.match(r.txid, /^[0-9a-f]{64}$/);
     const st = await d.store.getNonceState(k.mid.address);
@@ -59,17 +59,38 @@ describe("handleSponsor", () => {
     assert.equal(pend.length, 1);
     assert.equal(pend[0].originalTx, hex);
   });
-  test("fee floors when the node has no estimate; caps at the tier when the estimate is high", async () => {
-    const hex = (await buildUserSignedSwap(GOOD)).serialize();
-    // GOOD is the mid tier, which opens at twice the low bid: twice the floor here.
-    assert.equal(BigInt((await handleSponsor(hex, deps(fakeChain({ estimate: null })))).fee), POLICY.feeFloorUstx * 2n);
+  test("each tier opens at its fixed bid, whatever the mempool says", async () => {
+    const k = keys();
+    const seen: Record<string, bigint> = {};
+    for (const t of ["low", "mid", "high"] as TierName[]) {
+      const hex = (await buildUserSignedSwap({ ...GOOD, tier: TIERS[t], minOut: TIERS[t] > GOOD.minOut ? TIERS[t] : GOOD.minOut })).serialize();
+      const r = await handleSponsor(hex, deps(fakeChain({ quote: 2_000_000_000n }), k));
+      seen[t] = BigInt(r.fee);
+    }
+    assert.deepEqual(seen, { low: 3_000n, mid: 6_000n, high: 800_000n });
+    // and never above the tier, even when the operator sets an opening bid above it
     const low = (await buildUserSignedSwap({ ...GOOD, tier: TIERS.low })).serialize();
-    assert.equal(BigInt((await handleSponsor(low, deps(fakeChain({ estimate: 9_000n })))).fee), 9_000n);
-    assert.equal(BigInt((await handleSponsor(low, deps(fakeChain({ estimate: 9_999n })))).fee), 9_999n);
+    const r = await handleSponsor(low, deps(fakeChain(), keys(), new MemoryStore(), { ...POLICY, openingBid: { ...POLICY.openingBid, low: 50_000n } }));
+    assert.equal(BigInt(r.fee), TIERS.low);
   });
-  test("refuses a tier below the current minimum", async () => {
+  test("2026-09-29 incident: the relay does not consult the node's fee estimator at all", async () => {
+    // Observed on mainnet: node estimates low 632, mid 632717, high 712364 for this swap while the
+    // mempool held 17 transactions. Trusting any of them made minTier high and refused every user.
+    // RelayChain has no estimateFee any more; a fake that throws on it proves nothing reaches it.
+    const chain = fakeChain() as FakeChain & { estimateFee?: () => never };
+    chain.estimateFee = () => { throw new Error("estimator consulted"); };
     const low = (await buildUserSignedSwap({ ...GOOD, tier: TIERS.low })).serialize();
-    await rejects(handleSponsor(low, deps(fakeChain({ estimate: 20_000n }))), "TIER_BELOW_MIN");
+    const r = await handleSponsor(low, deps(chain));
+    assert.equal(r.tier, "low");
+    assert.equal(BigInt(r.fee), POLICY.openingBid.low);
+  });
+  test("refuses a tier below the operator's minimum tier", async () => {
+    const low = (await buildUserSignedSwap({ ...GOOD, tier: TIERS.low })).serialize();
+    await rejects(handleSponsor(low, deps(fakeChain(), keys(), new MemoryStore(), { ...POLICY, minTier: "mid" })), "TIER_BELOW_MIN");
+    const mid = (await buildUserSignedSwap(GOOD)).serialize();
+    await rejects(handleSponsor(mid, deps(fakeChain(), keys(), new MemoryStore(), { ...POLICY, minTier: "high" })), "TIER_BELOW_MIN");
+    // at the minimum is accepted
+    assert.equal((await handleSponsor(mid, deps(fakeChain(), keys(), new MemoryStore(), { ...POLICY, minTier: "mid" }))).tier, "mid");
   });
   test("refuses when the user lacks sBTC, when the nonce is stale, and when the live quote is below min-out", async () => {
     const hex = (await buildUserSignedSwap(GOOD)).serialize();
@@ -115,24 +136,21 @@ describe("handleSponsor", () => {
 });
 
 describe("buildInfo", () => {
-  test("publishes sponsors per tier, the fee estimate per tier, and the minimum tier", async () => {
+  test("publishes sponsors per tier, the opening bid per tier, and the operator's minimum tier", async () => {
     const k = keys();
-    const info = await buildInfo(deps(fakeChain({ estimate: 12_000n }), k));
+    const info = await buildInfo(deps(fakeChain(), k));
     assert.equal(info.sponsors.mid, k.mid.address);
-    assert.equal(info.minTier, "mid");
-    assert.equal(info.feeEstimate.low, "10000");
-    // mid doubles the low bid, which is capped at the low tier: 2 x 10000.
-    assert.equal(info.feeEstimate.mid, "20000");
-    // high opens at 80 percent of its tier.
-    assert.equal(info.feeEstimate.high, "800000");
+    assert.equal(info.minTier, "low");
+    assert.deepEqual(info.feeEstimate, { low: "3000", mid: "6000", high: "800000" });
+    assert.deepEqual(info.feePolicy.firstBid, { low: "3000", mid: "6000", high: "800000" });
     assert.deepEqual(info.feePolicy.rbfAfterSeconds, POLICY.rbfAfterSeconds);
     assert.equal(info.feePolicy.maxFee.high, TIERS.high.toString());
-    assert.equal(info.feeFactor, 1);
+    assert.ok(!("nodeEstimate" in info));
+    assert.ok(!("estimatePercentile" in info));
   });
-  test("with no node estimate the floor is published and the minimum tier is low", async () => {
-    const info = await buildInfo(deps(fakeChain({ estimate: null })));
-    assert.equal(info.minTier, "low");
-    assert.equal(info.feeEstimate.low, POLICY.feeFloorUstx.toString());
+  test("the minimum tier is the operator's policy, not a market reading", async () => {
+    const info = await buildInfo(deps(fakeChain(), keys(), new MemoryStore(), { ...POLICY, minTier: "high" }));
+    assert.equal(info.minTier, "high");
   });
 });
 

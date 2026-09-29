@@ -1,9 +1,9 @@
 // The relay's one job, as a pure-ish orchestration over injected dependencies:
 // verify -> policy -> preflight -> reserve nonce -> co-sign -> broadcast -> record.
-import { serializePayload, sponsorTransaction, type StacksTransactionWire } from "@stacks/transactions";
+import { sponsorTransaction, type StacksTransactionWire } from "@stacks/transactions";
 import { POLICY, RelayError, TIERS, TIER_NAMES, type TierName } from "./config.js";
 import { verifySponsoredSwap, type VerifiedSwap } from "./verify.js";
-import { bumpFee, computeFee, minTierFor } from "./fee.js";
+import { acceptedTiers, bumpFee, computeFee } from "./fee.js";
 import { reconcileNonce, type ChainNonces } from "./nonce.js";
 import type { PendingRecord, RelayStore } from "./store.js";
 export type { PendingRecord } from "./store.js";
@@ -12,7 +12,6 @@ export interface RelayChain {
   getSbtcBalance(address: string): Promise<bigint>;
   getNonces(address: string): Promise<ChainNonces>;
   quotePool(poolId: number, netSats: number | bigint): Promise<{ out: bigint; in: bigint }>;
-  estimateFee(payloadHex: string, estimatedLen: number): Promise<{ low: bigint; mid: bigint; high: bigint } | null>;
   broadcast(txHex: string): Promise<{ txid: string } | { error: string; reason: string; reason_data?: unknown }>;
 }
 export interface SponsorKey { privateKey: string; address: string }
@@ -33,11 +32,9 @@ export async function handleSponsor(txHex: string, d: RelayDeps): Promise<Sponso
   const v = await verifySponsoredSwap(txHex);
   const key = d.keys[v.tierName];
 
-  // policy: is this tier acceptable at the current fee level
-  const estimate = await estimateFor(v, d);
-  const minTier = minTierFor(estimate, d.policy.feeFactor);
-  if (minTier === null || TIER_NAMES.indexOf(v.tierName) < TIER_NAMES.indexOf(minTier)) {
-    throw new RelayError("TIER_BELOW_MIN", `tier ${v.tierName} below the current minimum ${minTier ?? "none (fees above the high tier)"}`, 409);
+  // policy: does this operator sponsor this tier at all (a setting, not an estimate)
+  if (!acceptedTiers(d.policy.minTier).includes(v.tierName)) {
+    throw new RelayError("TIER_BELOW_MIN", `tier ${v.tierName} below this relay's minimum ${d.policy.minTier}`, 409);
   }
   // rate limits, checked before any chain read the request could trigger
   const now = d.now();
@@ -52,7 +49,7 @@ export async function handleSponsor(txHex: string, d: RelayDeps): Promise<Sponso
   const quote = await d.chain.quotePool(v.poolId, v.net);
   if (quote.out < v.minOut) throw new RelayError("QUOTE_BELOW_MIN_OUT", `pool ${v.poolId} now quotes ${quote.out} uSTX, below min-out ${v.minOut}`, 409);
 
-  const fee = computeFee({ tier: v.tier, tierName: v.tierName, estimateUstx: estimate, byteLength: v.byteLength + SPONSOR_SIG_BYTES, feeFactor: d.policy.feeFactor, floorUstx: d.policy.feeFloorUstx, minPerByte: d.policy.minFeePerByte, firstBid: d.policy.firstBid });
+  const fee = computeFee({ tierName: v.tierName, openingBid: d.policy.openingBid, byteLength: v.byteLength + SPONSOR_SIG_BYTES, minPerByte: d.policy.minFeePerByte });
 
   // reserve a sponsor nonce, sign, broadcast; one reconcile-and-retry on a nonce conflict
   let attempt = 0;
@@ -80,15 +77,10 @@ export async function handleSponsor(txHex: string, d: RelayDeps): Promise<Sponso
   }
 }
 
-async function estimateFor(v: VerifiedSwap, d: RelayDeps): Promise<bigint> {
-  const payloadHex = serializePayload(v.tx.payload);
-  const est = await d.chain.estimateFee(payloadHex, v.byteLength + SPONSOR_SIG_BYTES).catch(() => null);
-  return est ? est.mid : d.policy.feeFloorUstx;
-}
-
 export interface RelayInfo {
-  contract: string; network: "mainnet"; sponsors: Record<TierName, string>; minTier: TierName | "none";
-  feeEstimate: Record<TierName, string>; feeFactor: number; maxPerOriginPerHour: number; termsUrl?: string; version: string;
+  contract: string; network: "mainnet"; sponsors: Record<TierName, string>; minTier: TierName;
+  // The opening bid per tier. Kept under this name for SDK compatibility; it is a policy, not an estimate.
+  feeEstimate: Record<TierName, string>; maxPerOriginPerHour: number; termsUrl?: string; version: string;
   pending: Record<TierName, number>;
   // What each tier opens at and how fast it is bumped, so a user can see what the tier buys.
   feePolicy: {
@@ -100,22 +92,19 @@ export interface RelayInfo {
 }
 
 export async function buildInfo(d: RelayDeps, contract = "SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4.sbtc-gas-swap-v1", termsUrl?: string): Promise<RelayInfo> {
-  // Estimate with a representative payload length; the per-tier fee is that estimate capped at the tier.
-  const est = await d.chain.estimateFee("", d.policy.estimatedLengthBytes).catch(() => null);
-  const mid = est ? est.mid : d.policy.feeFloorUstx;
   const feeEstimate = {} as Record<TierName, string>;
   const maxFee = {} as Record<TierName, string>;
   const pending = {} as Record<TierName, number>;
   for (const t of TIER_NAMES) {
-    feeEstimate[t] = computeFee({ tier: TIERS[t], tierName: t, estimateUstx: mid, byteLength: d.policy.estimatedLengthBytes, feeFactor: d.policy.feeFactor, floorUstx: d.policy.feeFloorUstx, minPerByte: d.policy.minFeePerByte, firstBid: d.policy.firstBid }).toString();
+    feeEstimate[t] = computeFee({ tierName: t, openingBid: d.policy.openingBid, byteLength: 616, minPerByte: d.policy.minFeePerByte }).toString();
     maxFee[t] = TIERS[t].toString();
     pending[t] = (await d.store.getNonceState(d.keys[t].address)).pending.length;
   }
   return {
     contract, network: "mainnet",
     sponsors: { low: d.keys.low.address, mid: d.keys.mid.address, high: d.keys.high.address },
-    minTier: minTierFor(mid, d.policy.feeFactor) ?? "none",
-    feeEstimate, feeFactor: d.policy.feeFactor, maxPerOriginPerHour: d.policy.perOriginPerHour, termsUrl, version: "0.1.0", pending,
+    minTier: d.policy.minTier,
+    feeEstimate, maxPerOriginPerHour: d.policy.perOriginPerHour, termsUrl, version: "0.2.0", pending,
     feePolicy: { firstBid: feeEstimate, rbfAfterSeconds: d.policy.rbfAfterSeconds, rbfBumpBips: d.policy.rbfBumpBips.toString(), maxFee },
   };
 }

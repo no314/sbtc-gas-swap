@@ -152,7 +152,7 @@ Name: **sBTC to Stacks gas**. Step flow, 4 steps, numbered from 1:
 
 Footer: persistent disclaimer link. Persistence: zero-persistence case (no anchor before broadcast; after broadcast the txid lives in the URL as `?txid=`). URL contract: `?chain=mainnet&api=...&txid=...`.
 
-Legal page `app/disclaimer.html` (second Vite entry, same tokens): the software and any relay are provided as is, without warranty; no guarantee of sponsorship, execution, price, or availability; all responsibility rests with the user or integrator; the relay operator may refuse any transaction; governing law New Jersey, USA; not legal advice; Werner to have counsel review before launch. Link it from the dapp footer and the relay `/v1/info` response (`termsUrl`).
+Legal page `app/disclaimer.html` (second Vite entry, same tokens): the software and any relay are provided as is, without warranty; no guarantee of sponsorship, execution, price, or availability; all responsibility rests with the user or integrator; the relay operator may refuse any transaction; the contract is immutable; the three fees are named; not legal advice; limitation of liability that bends to whatever law applies. No governing law clause: stx.fan is a website, not a legal entity, and cannot name a jurisdiction (superseded 2026-09-21; the first draft named New Jersey). The page speaks as stx.fan, names no company and no contact address. Link it from the dapp footer and the relay `/v1/info` response (`termsUrl`).
 
 ## 8. Docs: `docs/` (markdown, read on GitHub)
 

@@ -19,9 +19,8 @@ All responses are JSON with `access-control-allow-origin: *`.
 | `contract` | The contract this relay sponsors calls to |
 | `network` | `mainnet` |
 | `sponsors` | `{low, mid, high}`: the address that co-signs each tier. The contract pays the rebate to it |
-| `minTier` | Lowest tier the relay accepts at the current fee estimate, or `none` when even `high` does not cover the fee |
-| `feeEstimate` | `{low, mid, high}` in uSTX: the fee the relay would bid for each tier right now |
-| `feeFactor` | The operator's multiplier on the node estimate |
+| `minTier` | Lowest tier the operator accepts (`MIN_TIER`); tiers below it are refused with `TIER_BELOW_MIN` |
+| `feeEstimate` | `{low, mid, high}` in uSTX: the opening bid for each tier (the name is kept for SDK compatibility; nothing is estimated) |
 | `feePolicy` | `firstBid`, `rbfAfterSeconds` and `maxFee` per tier, plus `rbfBumpBips`: what the tier buys and how fast it is bumped |
 | `maxPerOriginPerHour` | Requests accepted per origin address per hour |
 | `pending` | `{low, mid, high}`: sponsored transactions not yet mined per key |
@@ -39,6 +38,7 @@ Errors: `{"code", "message"}` with these codes.
 | Code | HTTP | Meaning |
 | --- | --- | --- |
 | `MALFORMED` | 400 | Not JSON, not hex, not a transaction, or a multisig origin |
+| `BAD_SIGNATURE` | 400 | The origin signature does not verify against the origin account over the sponsored sighash |
 | `NOT_SPONSORED_AUTH` | 400 | Standard auth, or a sponsor signature already present |
 | `WRONG_NETWORK` | 400 | Chain id is not mainnet |
 | `WRONG_CONTRACT` | 400 | Not a contract call to `sbtc-gas-swap-v1` |
@@ -49,7 +49,7 @@ Errors: `{"code", "message"}` with these codes.
 | `UNKNOWN_POOL` | 400 | Pool id not whitelisted |
 | `BAD_BIPS` | 400 | Integrator bips above `100` |
 | `BAD_POST_CONDITIONS` | 400 | Mode is not deny, or the set differs from the exact three ([contract.md](contract.md#post-conditions)) |
-| `TIER_BELOW_MIN` | 409 | Tier below the relay's current `minTier` |
+| `TIER_BELOW_MIN` | 409 | Tier below the operator's `minTier` |
 | `INSUFFICIENT_SBTC` | 400 | Origin holds less sBTC than `amount` |
 | `BAD_NONCE` | 409 | Origin nonce differs from the chain's `possible_next_nonce` |
 | `QUOTE_BELOW_MIN_OUT` | 409 | The relay's own re-quote of the selected pool is below `min-out` |
@@ -57,11 +57,11 @@ Errors: `{"code", "message"}` with these codes.
 | `SPONSOR_BUSY` | 503 | The tier's key has `maxPendingPerKey` transactions pending |
 | `BROADCAST_FAILED` | 502 | The node rejected the sponsored transaction; the message carries the node's reason |
 
-A verdict about the transaction itself (`MALFORMED` through `BAD_POST_CONDITIONS`, `INSUFFICIENT_SBTC`) is final: the SDK stops trying other relays. The rest are relay or timing conditions and the SDK moves to the next relay.
+A verdict about the transaction itself (`MALFORMED` through `BAD_POST_CONDITIONS`, `BAD_SIGNATURE`, `INSUFFICIENT_SBTC`) is final: the SDK stops trying other relays. The rest are relay or timing conditions and the SDK moves to the next relay.
 
 ## Verification (pure, no network)
 
-`relay/src/core/verify.ts`, in order: deserialize; auth type `Sponsored` and no sponsor signature yet; chain id `1`; single-signature origin (`P2PKH` or `P2WPKH`); payload is a contract call to the pinned principal and function; six arguments with the right types; tier valid; `min-out >= tier`; pool whitelisted; bips at most `100`; deny mode; the post-condition set equals the expected three for the origin, amount, tier, min-out and pool (eq sBTC for pools 1 and 2, lte for pool 3). Nothing here costs the sponsor anything: a refused request is never broadcast.
+`relay/src/core/verify.ts`, in order: deserialize; auth type `Sponsored` and no sponsor signature yet; chain id `1`; single-signature origin (`P2PKH` or `P2WPKH`); the origin signature verifies (`verifyOrigin`); payload is a contract call to the pinned principal and function; six arguments with the right types; tier valid; `min-out >= tier`; pool whitelisted; bips at most `100`; deny mode; the post-condition set equals the expected three for the origin, amount, tier, min-out and pool (eq sBTC for pools 1 and 2, lte for pool 3). Nothing here costs the sponsor anything: a refused request is never broadcast.
 
 ## Preflight (chain reads)
 
@@ -69,24 +69,27 @@ Runtime aborts are paid by the sponsor (the network debits the fee and advances 
 
 ## Fee policy
 
-The market rate is the same for every tier: `market = max(estimate * feeFactor, byteLength * 1, feeFloorUstx)`.
+No fee estimator. Each tier opens at a fixed bid the operator sets, and the replace-by-fee ladder climbs from there on the tier's own schedule, never above the tier:
 
-- `estimate` is the node's middle estimate from `POST /v2/fees/transaction` for this payload; when the node has none (`400`), the floor is used.
-- `feeFactor` defaults to `1.0`: the operator's dial. Raise it when transactions sit; the relay then bids more and publishes a higher `minTier`.
-- `feeFloorUstx` defaults to `3000`; `1` uSTX per byte is the network admission floor.
-- `minTier` is the lowest tier whose value is at least `estimate * feeFactor`. A tier below it is refused with `TIER_BELOW_MIN`, so the relay never sponsors at a loss.
+```
+fee = min(max(openingBid[tier], byteLength * 1), tier)
+```
 
-The tier then sets the opening bid, so a user who paid for a higher tier gets a higher bid rather than a larger sponsor margin. `lowBid` is `min(market, 10000)`, the bid the low tier would place right now.
-
-| Tier | Opening bid | Typical today (market `3000`) | Bumped after |
+| Tier | Opening bid (`OPENING_BID_*`) | Bumped after (`RBF_AFTER_SECONDS_*`) | Ladder |
 | --- | --- | --- | --- |
-| low | `market` | `3000` | 30 minutes |
-| mid | `max(market, 2 * lowBid)` | `6000` | 30 minutes |
-| high | `max(market, 80% of the tier)` | `800000` | 10 minutes |
+| low | `3000` | 30 minutes | `3000`, `3300`, `3630`, ... up to `10000` |
+| mid | `6000` | 30 minutes | `6000`, `6600`, `7260`, ... up to `100000` |
+| high | `800000` | 10 minutes | `800000`, `880000`, `968000`, `1000000` |
 
-`fee = min(openingBid, tier)`. No tier ever bids above its own tier, because the tier is what the user repays; the sponsor's margin is `tier - fee`. The mid multiple and the high percentage are the `MID_FIRST_BID_MULTIPLE` and `HIGH_FIRST_BID_PCT` variables in `wrangler.toml`; setting `HIGH_FIRST_BID_PCT = "100"` makes the high tier bid its full 1 STX and leaves no room for a replacement.
+`1` uSTX per byte is the network admission floor. No tier ever bids above its own tier, because the tier is what the user repays; the sponsor's margin is `tier - fee`. The bump is per tier, on the tier's own clock, and moves the bid within the bracket the user chose. Differences inside a bracket are the design; a low-tier bid never competes with a high-tier bid, because each tier has its own sponsor key and therefore its own nonce sequence.
 
-What this buys is fairness, not speed. Stacks blocks arrive every few seconds and the mempool is rarely contested, so `3000` uSTX and `800000` uSTX are mined in the same block on a normal day. The user pays the tier either way. The policy decides who keeps the difference: the miner, or the sponsor. Above the market rate the high tier hands it to the miner.
+`minTier` is an operator setting (`MIN_TIER`, default `low`), not a market reading. Raise it to stop sponsoring a bracket; the relay then refuses that tier with `TIER_BELOW_MIN` and publishes the new minimum so the SDK skips it.
+
+Why no estimator. The node's `POST /v2/fees/transaction` is not a market price: a handful of mispriced mempool transactions pull the middle and high estimates up by orders of magnitude. Observed on 2026-09-29 with 17 transactions in the mempool: contract-call p75 of 1051 STX, and estimates of 632 / 632717 / 712364 uSTX for a swap that clears at 3000. A relay that trusted it computed `minTier` `high` and refused every user. Under-bidding is corrected by the ladder; a refusal is corrected by nothing. So the relay bids what the operator decided the bracket is worth and lets the ladder do the rest.
+
+Accepted risk: under real congestion every tier opens below the clearing price and waits for its ladder; with one key per tier the bracket's transactions then queue behind each other. That is accepted for now, since use is low. The mitigation when it matters is more keys per bracket so each key has at most one pending transaction, not an estimator.
+
+What the brackets buy is fairness, not speed. Stacks blocks arrive every few seconds and the mempool is rarely contested, so `3000` uSTX and `800000` uSTX are mined in the same block on a normal day. The user pays the tier either way. The policy decides who keeps the difference: the miner, or the sponsor. High hands most of it to the miner.
 
 ## Keys and nonces
 
@@ -94,7 +97,7 @@ Three keys, one per tier, so a low-tier queue cannot block mid or high. Per key 
 
 ## Replace-by-fee sweep
 
-Every 10 minutes (Worker Cron Trigger, or a timer in the Node adapter): drop pending records the chain has executed; for records pending longer than the tier's `rbfAfterSeconds`, re-sponsor the original user transaction at the same sponsor nonce with `fee + 10 percent` (at least `+1` uSTX, the mempool requires a strictly higher total fee), never above the tier; records already at the tier are reported as stuck for operator attention. Low and mid wait 30 minutes: low bids the market rate and mid already opens high, so a bump there is a correction, not the plan. High waits one sweep interval, 10 minutes, so it reaches the user's full tier as fast as the mempool rule allows: `800000`, `880000`, `968000`, `1000000` over 30 minutes, then stuck. The margin on the high tier is meant for the miner, not the sponsor. Mempool garbage collection is about 42.7 hours in Nakamoto, so a stuck record resolves by itself if nothing else does.
+Every 10 minutes (Worker Cron Trigger, or a timer in the Node adapter): drop pending records the chain has executed; for records pending longer than the tier's `rbfAfterSeconds`, re-sponsor the original user transaction at the same sponsor nonce with `fee + 10 percent` (at least `+1` uSTX, the mempool requires a strictly higher total fee), never above the tier; records already at the tier are reported as stuck for operator attention. Low and mid wait 30 minutes: a bump there is a correction, not the plan. High waits one sweep interval, 10 minutes, so it reaches the user's full tier as fast as the mempool rule allows: `800000`, `880000`, `968000`, `1000000` over 30 minutes, then stuck. The margin on the high tier is meant for the miner, not the sponsor. Mempool garbage collection is about 42.7 hours in Nakamoto, so a stuck record resolves by itself if nothing else does.
 
 ## Rate limits and state
 
@@ -105,7 +108,7 @@ Defaults: `5` requests per origin per hour, `500` per relay per hour. State is p
 | Threat | Mitigation |
 | --- | --- |
 | Abort griefing (sponsor pays for failing transactions) | Verification of the exact post-conditions, balance and nonce checks, live re-quote, per-origin rate limit, fee capped at the tier |
-| Fee market spike | `minTier` rises with the estimate; `feeFactor` dial; RBF within the tier; refusal when even `high` does not cover |
+| Fee market spike | RBF ladder within the tier on the tier's schedule; `OPENING_BID_*` and `MIN_TIER` are the operator's dials; more keys per bracket when queues form (accepted risk, see fee policy) |
 | Nonce gap blocks a key | Missing-nonce fill, chain-view reconcile, per-tier isolation, `maxPendingPerKey` headroom, RBF at the same nonce |
 | Key exposure | Keys hold only working STX; each is a separate account; rotate by generating a new key and updating the secret; the contract needs no registration of sponsors |
 | Wallet drops post-conditions | Refused with `BAD_POST_CONDITIONS`; a sponsored transaction cannot reach the chain without them |

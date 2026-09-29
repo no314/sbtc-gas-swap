@@ -6,6 +6,7 @@
 import {
   quoteXyk, quoteVelar, quoteDlmm, selectPool, splitFees, quoteAllPools, verifyContract, RelayClient, POOLS, TIER_NAMES,
 } from "@no314/sbtc-gas-swap";
+import { INTEGRATOR_BIPS } from "./core.jsx";
 
 const settle = (p) => p.then((v) => ({ ok: true, v }), (e) => ({ ok: false, e: (e && e.message) || String(e) }));
 
@@ -30,7 +31,7 @@ export async function readSnapshot(clients, account) {
 
 // Same result shape as the SDK's quoteAllPools, computed from a snapshot instead of fresh reads.
 export function quoteFromSnapshot(snap, amountSats) {
-  const fees = splitFees(amountSats, 0n);
+  const fees = splitFees(amountSats, INTEGRATOR_BIPS);
   const quotes = [];
   if (snap.states[1]) quotes.push(quoteXyk(snap.states[1], fees.net));
   if (snap.states[2]) quotes.push(quoteVelar(snap.states[2], fees.net));
@@ -42,7 +43,7 @@ export function quoteFromSnapshot(snap, amountSats) {
 
 // Fresh quote for one pool right before signing; null when that pool did not answer.
 export async function freshQuoteFor(clients, amountSats, poolId) {
-  const q = await quoteAllPools(clients.chain, { amountSats }).catch(() => null);
+  const q = await quoteAllPools(clients.chain, { amountSats, integratorBips: INTEGRATOR_BIPS }).catch(() => null);
   if (!q) return { quote: null, best: null, unavailable: [{ poolId, error: "no pool answered" }] };
   return { quote: q.quotes.find((p) => p.poolId === poolId) || null, best: q.best || null, unavailable: q.unavailable, readAt: new Date() };
 }
