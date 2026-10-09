@@ -69,6 +69,11 @@ const USER = "SP2J6ZY48GV1EZ5V2V5RB9MP66SW86PYKKNRV9EJ7";
 const RELAY = "https://relay.fixture.invalid";
 const TXID = "7d3f0a5c9e1b2846a0c3d5e7f9b1d3a5c7e9f1b3d5a7c9e1f3b5d7a9c1e3f5b7";
 const CONTRACT = "SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4.sbtc-gas-swap-v1";
+const REPLACEMENT_TXID = "a1b2c3d4e5f60718293a4b5c6d7e8f9001122334455667788990aabbccddeeff";
+// What the stub wallet returns: a sponsored transaction's wire prefix with origin nonce 5 (the
+// fixture chain's possible_next_nonce), then filler. version 00, chain id 00000001, auth 05,
+// hash mode 00, 20-byte signer, nonce, fee.
+const SIGNED_HEX = "0x" + "00" + "00000001" + "05" + "00" + "11".repeat(20) + "0000000000000005" + "0000000000000000" + "ab".repeat(160);
 
 // Every-step invariants: disclaimer link in the footer, no em dash, nothing in localStorage,
 // "Next steps" only on step 4.
@@ -82,14 +87,14 @@ async function invariants(where, step) {
 // Wallet bridge stub: Leather installed, connect returns the fixture user, a sponsored call
 // returns signed bytes and no txid (Leather's real behavior for sponsored: true).
 async function stubWallet() {
-  await page.evaluate((user) => {
+  await page.evaluate(([user, signed]) => {
     window.wbip_providers = [{ id: "LeatherProvider", name: "Leather" }];
     window.__requests = [];
     window.SGLib.setSelectedProviderId = (id) => { window.__pickedProvider = id; };
     window.SGLib.connect = async () => ({ addresses: [{ address: user }] });
     window.SGLib.disconnect = async () => {};
-    window.SGLib.request = async (method, params) => { window.__requests.push({ method, params }); return { transaction: "0x80800000000400" + "ab".repeat(160) }; };
-  }, USER);
+    window.SGLib.request = async (method, params) => { window.__requests.push({ method, params }); return { transaction: signed }; };
+  }, [USER, SIGNED_HEX]);
 }
 async function open(fixture) {
   await page.goto(`${BASE}/?fixture=${fixture}`);
@@ -248,7 +253,8 @@ check("call fields: contract, function, 6 hex args", req.params.contract === CON
 check("call fields: sponsored true, fee 0, deny mode, mainnet, 3 post-conditions", req.params.sponsored === true && req.params.fee === 0 && req.params.postConditionMode === "deny" && req.params.network === "mainnet" && req.params.postConditions.length === 3 && req.params.address === USER);
 check("post-conditions: ft eq amount, stx eq tier, pool stx gte min-out", JSON.stringify(req.params.postConditions.map((p) => [p.type, p.address, p.condition, p.amount])) === JSON.stringify([
   ["ft-postcondition", USER, "eq", "5000"], ["stx-postcondition", USER, "eq", "10000"], ["stx-postcondition", "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070", "gte", "13502107"]]));
-check("URL carries txid after broadcast, ordered chain, txid, api, fixture", new RegExp(`\\?chain=mainnet&txid=${TXID}&api=[^&]+&fixture=happy$`).test(page.url()), page.url());
+check("URL carries txid, origin and nonce after broadcast, ordered chain, txid, origin, nonce, api, fixture", new RegExp(`\\?chain=mainnet&txid=${TXID}&origin=${USER}&nonce=5&api=[^&]+&fixture=happy$`).test(page.url()), page.url());
+check("done step names the wallet nonce it follows", (await kv("Wallet nonce")) === `${USER} #5`);
 check("rail: 1 to 3 complete, 4 is the tab", JSON.stringify(await railStates()) === JSON.stringify(["complete", "complete", "complete", "tab"]));
 check("done step shows txid link to the explorer", (await page.getAttribute(".panel .kv a", "href")) === `https://explorer.hiro.so/txid/0x${TXID}?chain=mainnet`);
 check("relay used, sponsor, and status pending", (await kv("Relay used")) === RELAY && (await kv("Sponsor")) === "SP3TB3AJ0XMZ9S6CGY2CQ6R06H1Z6DJQ1SH15ZP2H" && (await text(".panel .badge")) === "pending");
@@ -377,11 +383,55 @@ check("tx-success: Swap Again offered", (await primary().textContent()).trim() =
 await invariants("tx-success step 4", 4);
 await shot("tx-success-step4-success");
 
+// ---------- tx-replaced: the relay's txid never indexes, the wallet's nonce mines under another ----------
+await open("tx-replaced");
+await connectLeather();
+await quoteReady();
+await primary().click();
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
+await primary().click();
+await page.waitForFunction(() => document.querySelector(".panel .badge.b-ok")?.textContent === "success", null, { timeout: 30000 });
+check("tx-replaced: the original txid row is kept and marked Replaced by fee", (await kv("Transaction")).startsWith(`0x${TXID}`) && (await kv("Transaction")).includes("Replaced by fee"));
+check("tx-replaced: the mined twin is shown under Mined as, linked to the explorer", (await kv("Mined as")) === `0x${REPLACEMENT_TXID}` && (await page.locator(`.panel .kv a[href="https://explorer.hiro.so/txid/0x${REPLACEMENT_TXID}?chain=mainnet"]`).count()) === 1);
+check("tx-replaced: status success and the ledgers come from the twin", (await ledger("STX"))?.rows.at(-1)[2] === "14.992342" && (await kv("Mined in Stacks block")) === "8,923,981");
+check("tx-replaced: the txid 404 is no longer reported as the last read", !(await text(".panel")).includes("could not find transaction"));
+await invariants("tx-replaced step 4", 4);
+await shot("tx-replaced-step4");
+
+// ---------- tx-other-sender: a confirmed transaction at the same nonce from another wallet is ignored ----------
+await open("tx-other-sender");
+await connectLeather();
+await quoteReady();
+await primary().click();
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
+await primary().click();
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Done", null, { timeout: 30000 });
+await page.waitForTimeout(1500);
+check("tx-other-sender: stays pending, no Mined as row, no Replaced badge", (await text(".panel .badge")) === "pending" && (await kv("Mined as")) === null && !(await kv("Transaction")).includes("Replaced"));
+check("tx-other-sender: the txid 404 is reported as the last read while pending", (await text(".panel .status.info")).includes("404"));
+
+// ---------- tx-twin-pending: two transactions for the nonce in the mempool ----------
+await open("tx-twin-pending");
+await connectLeather();
+await quoteReady();
+await primary().click();
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
+await primary().click();
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Done", null, { timeout: 30000 });
+await page.waitForFunction(() => [...document.querySelectorAll(".panel .kv > span:first-child")].some((k) => k.textContent === "Also pending"), null, { timeout: 15000 });
+check("tx-twin-pending: both shown as pending, the twin under Also pending", (await text(".panel .badge")) === "pending" && (await kv("Also pending")) === `0x${REPLACEMENT_TXID}`);
+await shot("tx-twin-pending-step4");
+
 // ---------- ?txid= reload lands on step 4 ----------
 await page.goto(`${BASE}/?chain=mainnet&txid=${TXID}&fixture=tx-success`);
 await page.waitForSelector(".rail-tab");
 check("?txid= reload lands on step 4 with 1 to 3 complete", (await text(".rail-tab .name")) === "Done" && JSON.stringify(await railStates()) === JSON.stringify(["complete", "complete", "complete", "tab"]));
 check("?txid= reload keeps the txid in the URL", page.url().includes(`txid=${TXID}`));
+// a reload with origin and nonce resolves a replaced transaction without the relay result
+await page.goto(`${BASE}/?chain=mainnet&txid=${TXID}&origin=${USER}&nonce=5&fixture=tx-replaced`);
+await page.waitForSelector(".rail-tab");
+await page.waitForFunction(() => document.querySelector(".panel .badge.b-ok")?.textContent === "success", null, { timeout: 30000 });
+check("?txid=&origin=&nonce= reload resolves the replaced transaction", (await kv("Mined as")) === `0x${REPLACEMENT_TXID}` && (await kv("Transaction")).includes("Replaced by fee"));
 await page.click(".rail-item.complete >> nth=2");
 check("step 3 after reload explains the missing details", (await text(".panel")).includes("signing details are not kept after a reload"));
 await shot("reload-step3-from-url");

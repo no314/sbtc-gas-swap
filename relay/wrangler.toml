@@ -6,9 +6,20 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["*/10 * * * *"]
 
+# Rate-limit windows only. Eventually consistent, so nothing that must be counted exactly lives here.
 [[kv_namespaces]]
 binding = "RELAY_KV"
 id = "52ed87abafb440feb9b6ce7eb563858a"
+
+# Sponsor nonces, pending records and in-flight origin nonces: one single-writer object per tier
+# plus one named "origins". Strongly consistent; created by the first deploy that carries the migration.
+[[durable_objects.bindings]]
+name = "TIER_STATE"
+class_name = "TierState"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["TierState"]
 
 [vars]
 STACKS_API_URL = "https://api.hiro.so"

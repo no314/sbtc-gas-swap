@@ -2,6 +2,7 @@ import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { getAddressFromPrivateKey, makeRandomPrivKey } from "@stacks/transactions";
 import { route } from "../src/core/http.js";
+import { ChainError } from "@no314/sbtc-gas-swap";
 import { MemoryStore } from "../src/core/store.js";
 import { POLICY, type TierName } from "../src/core/config.js";
 import type { RelayDeps } from "../src/core/relay.js";
@@ -41,6 +42,27 @@ describe("HTTP routes", () => {
     assert.equal(((await bad.json()) as any).code, "MALFORMED");
     const notJson = await route(new Request("https://r.example/v1/sponsor", { method: "POST", body: "nope" }), deps(), opts);
     assert.equal(((await notJson.json()) as any).code, "MALFORMED");
+  });
+  test("POST /v1/sponsor twice for the same origin nonce: the second is 409 ORIGIN_NONCE_IN_FLIGHT", async () => {
+    const d = deps();
+    const hex = (await buildUserSignedSwap(GOOD)).serialize();
+    const post = () => route(new Request("https://r.example/v1/sponsor", { method: "POST", body: JSON.stringify({ tx: hex }), headers: { "content-type": "application/json" } }), d, opts);
+    assert.equal((await post()).status, 200);
+    const twin = await post();
+    assert.equal(twin.status, 409);
+    const j = (await twin.json()) as any;
+    assert.equal(j.code, "ORIGIN_NONCE_IN_FLIGHT");
+    assert.ok(j.message.includes("cd".repeat(32)));
+  });
+  test("a 429 from the chain API is UPSTREAM_RATE_LIMITED 503, not INTERNAL", async () => {
+    const d = deps();
+    d.chain.getSbtcBalance = async () => { throw new ChainError("429 from /v2/contracts/call-read/x", 429, "Too Many Requests"); };
+    const hex = (await buildUserSignedSwap(GOOD)).serialize();
+    const res = await route(new Request("https://r.example/v1/sponsor", { method: "POST", body: JSON.stringify({ tx: hex }), headers: { "content-type": "application/json" } }), d, opts);
+    assert.equal(res.status, 503);
+    const j = (await res.json()) as any;
+    assert.equal(j.code, "UPSTREAM_RATE_LIMITED");
+    assert.match(j.message, /429/);
   });
   test("unknown routes and preflight", async () => {
     assert.equal((await route(new Request("https://r.example/nope"), deps(), opts)).status, 404);

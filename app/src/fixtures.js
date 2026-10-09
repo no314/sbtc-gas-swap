@@ -75,6 +75,9 @@ const txBody = (status, repr, extra = {}) => ({
   ...extra,
 });
 
+export const REPLACEMENT_TXID = "a1b2c3d4e5f60718293a4b5c6d7e8f9001122334455667788990aabbccddeeff";
+export const OTHER_SENDER = "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE";
+
 export const FIXTURES = {
   // Every pool answers, one relay with minimum tier low; the swap mines after one pending poll.
   happy: {
@@ -102,6 +105,26 @@ export const FIXTURES = {
   "tx-abort-1020": {
     inputs: { amount: "5000", unit: "sats" }, balanceSats: 250_000n, minTier: "low",
     txSequence: [txBody("abort_by_response", "(err u1020)", { block_height: TIP + 3 })],
+  },
+  // The txid the relay returned is never indexed (a twin at the same sponsor nonce reached the
+  // miner first, 2026-09-30); the wallet's nonce 5 is mined under another txid with a bumped fee.
+  "tx-replaced": {
+    inputs: { amount: "5000", unit: "sats" }, balanceSats: 250_000n, minTier: "low",
+    txNotFound: true, txSequence: [],
+    addressTxs: [txBody("success", SUCCESS_RESULT, { tx_id: "0x" + REPLACEMENT_TXID, fee_rate: "3300", block_height: TIP + 4 })],
+  },
+  // A confirmed transaction at the same nonce from another wallet (the address endpoint also
+  // lists transactions the address merely received) must not be taken for ours.
+  "tx-other-sender": {
+    inputs: { amount: "5000", unit: "sats" }, balanceSats: 250_000n, minTier: "low",
+    txNotFound: true, txSequence: [],
+    addressTxs: [txBody("success", SUCCESS_RESULT, { tx_id: "0x" + REPLACEMENT_TXID, sender_address: OTHER_SENDER, block_height: TIP + 4 })],
+  },
+  // Two transactions for the wallet's nonce sit in the mempool at once: both are shown as pending.
+  "tx-twin-pending": {
+    inputs: { amount: "5000", unit: "sats" }, balanceSats: 250_000n, minTier: "low",
+    txSequence: [txBody("pending")],
+    mempoolTxs: [txBody("pending", null, { tx_id: "0x" + REPLACEMENT_TXID, fee_rate: "3300" })],
   },
   // The swap mines successfully on the first poll.
   "tx-success": {
@@ -140,8 +163,11 @@ export function makeFixtureFetch(fx, contractSource) {
     if (u.includes("/v2/info")) return json({ stacks_tip_height: TIP, burn_block_height: 962700, network_id: 1, server_version: "fixture" });
     if (/\/extended\/v1\/address\/[^/]+\/nonces/.test(u)) return json({ last_executed_tx_nonce: 4, last_mempool_tx_nonce: null, possible_next_nonce: 5, detected_missing_nonces: [] });
     if (u.includes("/v2/accounts/")) return json({ balance: "0x0", locked: "0x0", nonce: 5 });
+    if (u.includes("/extended/v1/tx/mempool")) return json({ limit: 20, offset: 0, total: (fx.mempoolTxs ?? []).length, results: fx.mempoolTxs ?? [] });
+    if (/\/extended\/v1\/address\/[^/]+\/transactions/.test(u)) return json({ limit: 20, offset: 0, total: (fx.addressTxs ?? []).length, results: fx.addressTxs ?? [] });
     if (u.includes("/extended/v1/tx/")) {
       const seq = fx.txSequence;
+      if (fx.txNotFound) return json({ statusCode: 404, error: "Not Found", message: "could not find transaction by ID" }, 404);
       if (!sponsored || seq.length === 0) return json({ error: "not found", tx_status: undefined });
       const body = seq[Math.min(polls, seq.length - 1)];
       polls++;

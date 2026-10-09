@@ -12,19 +12,23 @@ class FileStore extends MemoryStore {
   constructor(private path: string) {
     super();
     if (existsSync(path)) {
-      const d = decodeJson<{ nonces: [string, any][]; pending: [string, any][]; hits: [string, number[]][] }>(readFileSync(path, "utf8"));
-      this.nonces = new Map(d.nonces); this.pending = new Map(d.pending); this.hits = new Map(d.hits);
+      const d = decodeJson<{ nonces: [string, any][]; pending: [string, any][]; hits: [string, number[]][]; origins?: [string, any][] }>(readFileSync(path, "utf8"));
+      this.nonces = new Map(d.nonces); this.pending = new Map(d.pending); this.hits = new Map(d.hits); this.origins = new Map(d.origins ?? []);
     }
   }
   private flush() {
     mkdirSync(dirname(this.path), { recursive: true });
-    writeFileSync(this.path, encodeJson({ nonces: [...this.nonces], pending: [...this.pending], hits: [...this.hits] }));
+    writeFileSync(this.path, encodeJson({ nonces: [...this.nonces], pending: [...this.pending], hits: [...this.hits], origins: [...this.origins] }));
   }
   async setNonceState(a: string, s: any) { await super.setNonceState(a, s); this.flush(); }
   async rateLimit(k: string, l: number, n: number) { const r = await super.rateLimit(k, l, n); this.flush(); return r; }
   async addPending(r: any) { await super.addPending(r); this.flush(); }
   async removePending(t: string) { await super.removePending(t); this.flush(); }
   async replacePending(o: string, r: any) { await super.replacePending(o, r); this.flush(); }
+  // allocateNonce, releaseNonce and settleNonces go through setNonceState, which flushes
+  async reserveOriginNonce(o: string, n: bigint, now: number) { const r = await super.reserveOriginNonce(o, n, now); this.flush(); return r; }
+  async confirmOriginNonce(o: string, n: bigint, t: string) { await super.confirmOriginNonce(o, n, t); this.flush(); }
+  async releaseOriginNonce(o: string, n: bigint) { await super.releaseOriginNonce(o, n); this.flush(); }
 }
 
 const env = process.env as Record<string, string | undefined>;

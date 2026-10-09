@@ -17,7 +17,11 @@ The harness (`scripts/verify-app.mjs`) drives headless Chromium (playwright-core
 
 ## URL contract
 
-`?chain=mainnet` always; `?txid=` after a relay broadcast; `?api=` always at its current value (default `https://api.hiro.so`); `?fixture=<name>` runs the app offline against recorded data (`happy`, `velar-down`, `no-relay`, `min-out-below-tier`, `tx-abort-1020`, `tx-success`). Nothing is stored in the browser; the URL is the whole state.
+`?chain=mainnet` always; `?txid=`, `?origin=` and `?nonce=` after a relay broadcast (the txid the relay returned, and the wallet address and nonce the Done page follows); `?api=` always at its current value (default `https://api.hiro.so`); `?fixture=<name>` runs the app offline against recorded data (`happy`, `velar-down`, `no-relay`, `min-out-below-tier`, `tx-abort-1020`, `tx-success`, `tx-replaced`, `tx-other-sender`, `tx-twin-pending`). Nothing is stored in the browser; the URL is the whole state.
+
+## Done page
+
+The swap is identified by the wallet's address and nonce, not by one txid. A relay fee bump, or a second submission that reached a miner first, mines under another txid; the page reads the relay's txid, the wallet's confirmed transactions and its mempool every 10 seconds and resolves whichever transaction at that nonce mined. The row with the txid the relay returned is never removed; when another one mined it is marked "Replaced by fee" and the mined one appears under "Mined as". Only transactions sent by the wallet count.
 
 ## Deploy
 

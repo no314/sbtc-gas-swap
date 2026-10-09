@@ -42,7 +42,7 @@ A browser tab opens on your Cloudflare account; click Allow. The terminal prints
 npx wrangler kv namespace create RELAY_KV
 ```
 
-Expect a line like `id = "0123abcd..."`. Open `relay/wrangler.toml`, find `[[kv_namespaces]]`, replace `REPLACE_WITH_KV_NAMESPACE_ID` with that id, and remove the `preview_id = "local"` line.
+Expect a line like `id = "0123abcd..."`. Open `relay/wrangler.toml`, find `[[kv_namespaces]]`, replace `REPLACE_WITH_KV_NAMESPACE_ID` with that id, and remove the `preview_id = "local"` line. KV holds only the rate-limit windows. Nonces, pending transactions and in-flight origin nonces live in a Durable Object (`TierState`, declared in the same file with a `[[migrations]]` block); it needs no setup, the first deploy creates it, and it is included in the free plan.
 
 ### 4. Generate the three sponsor keys
 
@@ -80,7 +80,9 @@ npm run build
 npx wrangler deploy
 ```
 
-Expect `Deployed sbtc-gas-relay triggers` and the URL `https://sbtc-gas-relay.<subdomain>.workers.dev`, plus `schedule: */10 * * * *` (the RBF sweep).
+Expect `Deployed sbtc-gas-relay triggers` and the URL `https://sbtc-gas-relay.<subdomain>.workers.dev`, plus `schedule: */10 * * * *` (the RBF sweep). The first deploy that carries the `[[migrations]]` block also prints the Durable Object class it created.
+
+Upgrading a relay that ran before 2026-10 (state in KV): check `/v1/info` shows `pending` all zero first, then deploy. The objects start from the chain's view of each key, which is correct when nothing is pending; the old `nonce:` and `pending:` keys in KV are simply never read again.
 
 ### 9. Verify
 
@@ -110,6 +112,8 @@ Add your URL to [`docs/sponsors.json`](sponsors.json) in a pull request (format 
 - `npx wrangler tail` streams requests, errors, and the RBF sweep log line every 10 minutes. Watch the CPU time on `/v1/sponsor` during the first swaps: the free plan allows 10 ms per request; if you see `Exceeded CPU` errors, upgrade to Workers Paid (5 USD per month) in the dashboard. Nothing else changes.
 - Balances: check the three addresses weekly at first. A key that stops growing while `pending` stays high means transactions are stuck; the sweep reports `stuck` in the log.
 - Turn the dial: raise the tier's `OPENING_BID_*` in `wrangler.toml` and redeploy when that bracket's transactions sit past their first bump; set `MIN_TIER` to `mid` or `high` to stop sponsoring a bracket. Under sustained congestion the answer is more keys per bracket (one pending transaction per key), not a higher bid; that is a v2 change noted in [relay.md](relay.md#keys-and-nonces).
+- A user who submits the same signed transaction twice within seconds (double click, retry after a timeout) gets `ORIGIN_NONCE_IN_FLIGHT` naming the pending txid; nothing is signed twice. The app's Done page follows the wallet's nonce, so it resolves even when a bumped or twinned transaction mined under another txid.
+- `UPSTREAM_RATE_LIMITED` in `wrangler tail` means Hiro refused the relay's reads: the key's plan is 50 requests per minute and one sponsor request costs 5 to 11. Give the relay a key of its own, or a bigger plan.
 - Rotate a key: `npm run keygen`, fund the new address, `wrangler secret put SPONSOR_KEY_<TIER>` with the new key, redeploy, then move the remaining STX off the old address.
 
 ## Publish the demo app and sponsors.json
