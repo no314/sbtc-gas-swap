@@ -22,6 +22,7 @@ export async function readSnapshot(clients, account) {
   return {
     states, unavailable,
     tip: info.ok ? info.v.stacks_tip_height : null,
+    burnTip: info.ok ? info.v.burn_block_height : null,
     tipError: info.ok ? null : info.e,
     balance: bal && bal.ok ? bal.v : null,
     balanceError: bal ? (bal.ok ? null : bal.e) : null,

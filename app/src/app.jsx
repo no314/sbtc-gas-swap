@@ -45,7 +45,7 @@ function SiteFoot() {
     <span className="spacer"></span>
     <span className="reset-wrap" onClick={(e) => e.stopPropagation()}>
       {pop ? <span className="reset-pop">
-        <span>Confirm that you want to reset this swap and start over. Nothing is stored; the URL is cleared.</span>
+        <span>Reset this swap and start over? This page stores nothing; Reset clears the address bar.</span>
         <span className="row"><button className="btn btn-secondary" onClick={() => setPop(false)}>Cancel</button><button className="btn btn-primary" onClick={reset}>Reset</button></span>
       </span> : null}
       <button className="reset-btn" onClick={() => setPop((o) => !o)}>Reset</button>
@@ -172,7 +172,7 @@ export function App() {
       readOnly={readOnlySteps.includes(2)} committed={committed} />,
     3: committed ? <Step3 clients={clients} account={account} onConnect={doConnect} committed={committed} relays={relays} onSponsored={onSponsored} onBack={back}
       readOnly={readOnlySteps.includes(3)} result={result} />
-      : <div className="body-wrap"><div className="body"><p className="step-sub">{result ? "This page was opened from a transaction id; the signing details are not kept after a reload." : "Enter a swap amount first."}</p></div><div className="foot"><Btn kind="tertiary" onClick={back}><i className="ph ph-arrow-left"></i>Back</Btn><span className="spacer"></span></div></div>,
+      : <div className="body-wrap"><div className="body"><p className="step-sub">{result ? "You opened this page from a transaction id. The signing details do not survive a reload." : "Enter a swap amount first."}</p></div><div className="foot"><Btn kind="tertiary" onClick={back}><i className="ph ph-arrow-left"></i>Back</Btn><span className="spacer"></span></div></div>,
     4: <Step4 clients={clients} txid={result ? result.txid : null} origin={result ? result.origin : null} originNonce={result ? result.originNonce : null} result={result} onRetry={onRetry} onBack={back} />,
   }[viewStep];
 
@@ -190,7 +190,7 @@ export function App() {
       </div>
     </div></header>
     <main className="wrap">
-      {clients.fixture ? <StatusLine kind="info">Fixture mode <span className="mono">{clients.fixtureName}</span>: every read and relay call is answered from recorded data; nothing reaches the network.</StatusLine> : null}
+      {clients.fixture ? <StatusLine kind="info">Fixture mode <span className="mono">{clients.fixtureName}</span>: this page answers each read from recorded data and sends nothing to the network.</StatusLine> : null}
       <Rail stepStatus={stepStatus} viewStep={viewStep} onView={setViewStep} readOnlySteps={readOnlySteps} />
       <section className="panel" style={viewStep === 1 ? { borderTopLeftRadius: 0 } : null} key={viewStep}>{stepEl}</section>
       <StepInfo step={viewStep} />
@@ -200,16 +200,16 @@ export function App() {
       <h3>Connect a wallet</h3>
       <div className="pick">
         {walletPick.map((w) => {
-          const badge = w.tier === "verified" ? <span className="badge b-ok">verified</span> : w.tier === "untested" ? <span className="badge b-warn">offered untested</span> : <span className="badge b-bad">not supported</span>;
+          const badge = w.tier === "verified" ? <span className="badge b-ok">tested</span> : w.tier === "untested" ? <span className="badge b-warn">untested</span> : <span className="badge b-bad">not supported</span>;
           if (w.installed && w.supported) return <button key={w.key} onClick={() => connectWith(w)}>
             <span className="id" style={{ fontFamily: "var(--font-body)" }}>{w.name} {badge}</span><span className="meta">Connect</span></button>;
           if (!w.installed && w.install) return <div key={w.key} className="pick-link">
             <span className="id" style={{ fontFamily: "var(--font-body)" }}>{w.name} {badge}</span>
             <span className="meta"><a href={w.install} target="_blank" rel="noopener">Install <i className="ph ph-arrow-up-right"></i></a></span></div>;
-          return <div key={w.key} className="pick-blocked"><span className="id" style={{ fontFamily: "var(--font-body)" }}>{w.name} {badge}</span><span className="meta">drops post-conditions</span></div>;
+          return <div key={w.key} className="pick-blocked"><span className="id" style={{ fontFamily: "var(--font-body)" }}>{w.name} {badge}</span><span className="meta">drops the limits</span></div>;
         })}
       </div>
-      <p style={{ marginTop: 16, marginBottom: 0 }}>The relay refuses any transaction lacking the exact post-conditions, so a wallet that drops them cannot get sponsored.</p>
+      <p style={{ marginTop: 16, marginBottom: 0 }}>A wallet must keep the three limits on the transaction, or the sponsor refuses it. Leather keeps them.</p>
       <div className="row"><Btn kind="secondary" onClick={() => setWalletPick(null)}>Cancel</Btn></div>
     </div></div> : null}
   </div>;
