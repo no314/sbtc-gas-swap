@@ -227,3 +227,13 @@ textarea.in.code{min-height:220px;white-space:pre;font-size:12px}
 .ledger-row.total{border-top:1px solid var(--border-secondary);margin-top:2px;padding-top:9px;font-weight:500;color:var(--text-primary)}
 .ledger-row.total .n{font-weight:500}
 .kv .v .badge{margin-left:8px;vertical-align:1px}
+
+/* "How this works": the mechanism of a step, collapsed by default */
+.how{margin-top:20px;border-top:1px solid var(--border-secondary);padding-top:12px}
+.how summary{cursor:pointer;font:500 13px var(--font-body);color:var(--text-secondary);list-style:none;display:inline-flex;align-items:center;gap:6px}
+.how summary::-webkit-details-marker{display:none}
+.how summary::before{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+.how[open] summary::before{transform:rotate(45deg)}
+.how-body{margin-top:10px;color:var(--text-secondary);font-size:14px;line-height:1.55}
+.how-body p{margin:0 0 10px}
+.how-body .kvs{margin-top:6px}

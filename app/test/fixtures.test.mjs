@@ -100,3 +100,10 @@ test("tx-abort-1020 answers an abort with (err u1020)", async () => {
   assert.equal(tx.tx_status, "abort_by_response");
   assert.equal(tx.tx_result.repr, "(err u1020)");
 });
+
+test("the review step's sBTC wording follows each pool's post-condition: exactly for eq, at most for lte", async () => {
+  const { POOLS } = await import("@no314/sbtc-gas-swap");
+  assert.equal(POOLS[1].sbtcCondition, "eq");
+  assert.equal(POOLS[2].sbtcCondition, "eq");
+  assert.equal(POOLS[3].sbtcCondition, "lte");
+});

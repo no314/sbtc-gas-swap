@@ -1,6 +1,7 @@
-// Constants, UI atoms, and the step rail. Glossary terms (PROMPT.md section 2) are used verbatim
-// in copy, identifiers, and state: swap amount, tier, network fee, default provider fee,
-// integrator fee, net input, quote, min-out, slippage, pool id, sponsor, relay.
+// Constants, UI atoms, and the step rail. Copy rules (docs/decisions-log.md, 2026-10-09): plain
+// words in the lead and the rows, official terms glossed at first use, the mechanism in a
+// collapsed "How this works" block. In copy: fee level (code: tier), minimum you receive
+// (code: min-out), sponsor service (code: relay), sBTC into the pool (code: net input).
 // The contract's own field names stay as deployed: rebate, service-fee, integrator-fee.
 import React, { useState, useEffect, useRef } from "react";
 import { CONTRACT, TIERS } from "@no314/sbtc-gas-swap";
@@ -20,7 +21,7 @@ export const TIER_LIST = ["low", "mid", "high"].map((k) => ({ key: k, ustx: TIER
 export const STEPS = [
   { n: 1, short: "Connect", name: "Connect a wallet" },
   { n: 2, short: "Amount", name: "Swap amount" },
-  { n: 3, short: "Sign", name: "Sign and sponsor" },
+  { n: 3, short: "Sign", name: "Sign and swap" },
   { n: 4, short: "Done", name: "Done" },
 ];
 export const FRESH_STATUS = { 1: "active", 2: "locked", 3: "locked", 4: "locked" };
@@ -38,6 +39,10 @@ export function CheckRow({ k, children }) {
   const icon = k === "ok" ? "ph-check-circle" : k === "bad" ? "ph-x-circle" : "ph-warning-circle";
   const color = k === "ok" ? "var(--green-600)" : k === "bad" ? "var(--red-500)" : "var(--yellow-700)";
   return <div className="check-row"><i className={`ph ${icon}`} style={{ color }}></i><span>{children}</span></div>;
+}
+// The mechanism behind a step, closed by default: for readers who want it, out of the way of the rest.
+export function How({ children }) {
+  return <details className="how"><summary>How this works</summary><div className="how-body">{children}</div></details>;
 }
 export function ExtLink({ href, children }) { return <a href={href} target="_blank" rel="noopener">{children} <i className="ph ph-arrow-square-out" style={{ fontSize: "0.85em" }}></i></a>; }
 export function GatedBtn({ account, onConnect, disabled, onClick, children }) {
@@ -57,7 +62,7 @@ export function useElapsed(active) {
   return t;
 }
 export function fmtElapsed(s) { const m = Math.floor(s / 60); return m > 0 ? `${m}m ${s % 60}s` : `${s}s`; }
-export function walletErrMsg(e) { const c = e && typeof e === "object" && "code" in e ? Number(e.code) : null; return (c === 4001 || c === -31001) ? "Transaction rejected in wallet." : null; }
+export function walletErrMsg(e) { const c = e && typeof e === "object" && "code" in e ? Number(e.code) : null; return (c === 4001 || c === -31001) ? "You rejected the transaction in the wallet." : null; }
 
 // ---------- step rail ----------
 export function Rail({ stepStatus, viewStep, onView, readOnlySteps }) {

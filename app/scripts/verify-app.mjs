@@ -56,7 +56,7 @@ const body = () => page.evaluate(() => document.body.innerText);
 const noEmDash = () => page.evaluate(() => !document.body.innerText.includes("\u2014"));
 const localStorageLen = () => page.evaluate(() => localStorage.length);
 const railStates = () => page.evaluate(() => [...document.querySelectorAll(".rail > *")].map((el) => el.classList.contains("rail-tab") ? "tab" : ["locked", "active", "complete", "blocked", "skipped"].find((c) => el.classList.contains(c)) || "?"));
-const kv = async (label) => page.evaluate((l) => { const row = [...document.querySelectorAll(".kv")].find((k) => k.children[0].textContent.startsWith(l)); return row ? row.children[1].textContent : null; }, label);
+const kv = async (label) => page.evaluate((l) => { const rows = [...document.querySelectorAll(".kv")]; const row = rows.find((k) => k.children[0].textContent === l) || rows.find((k) => k.children[0].textContent.startsWith(l)); return row ? row.children[1].textContent : null; }, label);
 const primary = () => page.locator(".panel .foot .btn-primary");
 const ledger = (title) => page.evaluate((t) => {
   const box = [...document.querySelectorAll(".ledger")].find((l) => l.querySelector(".ledger-head span").textContent === t);
@@ -108,7 +108,7 @@ async function connectLeather() {
 }
 const quoteReady = () => page.waitForFunction(() => {
   const rows = [...document.querySelectorAll(".kv")];
-  const pool = rows.find((k) => k.children[0].textContent.startsWith("Pool used"));
+  const pool = rows.find((k) => k.children[0].textContent === "Pool");
   const rl = document.querySelector(".readerline .badge");
   const bal = document.querySelector(".amount-row .field:nth-child(2) input");
   return pool && pool.children[1].textContent !== "-" && rl && !document.querySelector(".readerline .spin")
@@ -135,7 +135,8 @@ check("fixture banner names the fixture", (await text(".status.info")).includes(
 check("catalog: Leather verified, three untested, install links, no connect button without wallets",
   (await page.locator(".wallet-pick .pick-link").count()) === 4 && (await page.locator(".wallet-pick button").count()) === 0
   && (await page.locator(".wallet-pick .b-ok").count()) === 1 && (await page.locator(".wallet-pick .b-warn").count()) === 3);
-check("Xverse offered untested with the relay refusal note", (await text(".panel")).includes("Xverse") && (await text(".panel")).includes("relay refuses any transaction lacking the exact post-conditions"));
+check("Xverse offered untested; the mechanism sits in a closed How this works block", (await text(".panel")).includes("Xverse") && (await text(".panel .how summary")) === "How this works" && (await page.evaluate(() => !document.querySelector(".panel .how").open)) && (await text(".panel .how-body")).includes("A wallet that drops post-conditions cannot be sponsored."));
+check("step 1 lead in plain words", (await text(".panel .step-sub")).startsWith("Connect the wallet that holds your sBTC. You need no STX"));
 await invariants("happy step 1", 1);
 await shot("happy-step1-connect");
 
@@ -176,20 +177,21 @@ check("header shows the short address after connect", (await text(".hdr .wallet-
 check("rail: step 1 complete, step 2 is the tab", JSON.stringify(await railStates()) === JSON.stringify(["complete", "tab", "locked", "locked"]));
 check("fixture seeds the swap amount", (await page.inputValue(".unit-row input")) === "5000");
 await quoteReady();
-check("reader line: contract verified with the first 12 hash chars", (await text(".readerline")).includes("contract verified") && (await text(".readerline")).includes("5702f09a5ab5"));
+check("reader line: contract verified, the full structure hash in How this works", (await text(".readerline")).includes("contract verified") && (await kv("Contract structure hash")) === "5702f09a5ab584d56d7e803b94143d1c51327c5a95f2a2309df4e604215ed608");
 check("sBTC balance read and shown in both units", (await page.inputValue(".amount-row .field:nth-child(2) input")) === "250,000 sats (0.00250000 BTC)");
 check("both units under the amount field", (await text(".unit-row + .hint")) === "0.00005000 BTC");
-check("pool used is Velar for 5,000 sats at the recorded reserves", (await kv("Pool used")) === "velar-univ2-70 (pool id 2)");
+check("pool used is Velar for 5,000 sats at the recorded reserves", (await kv("Pool")) === "velar-univ2-70");
 check("quote in both units", (await kv("Quote")) === "15.002342 STX (15,002,342 uSTX)");
 check("default provider fee", (await kv("Default provider fee")) === "25 sats");
-check("integrator fee is 1 percent to the app principal", (await kv("Integrator fee")) === "50 sats to SP3PCJ68JW050YKQ9106JP11TXWS46163HX7NG6XH");
-check("net input", (await kv("Net input")) === "4,925 sats");
-check("tier defaults to low with the relay minimum shown", (await kv("Network fee (tier)")) === "low: 0.01 STX (10,000 uSTX)" && (await text(".tier.sel .tname")) === "low" && (await text(".tier.sel .tmin")) === "relay minimum");
+check("integrator fee is 1 percent to stx.fan; the full recipient address in How this works", (await kv("Integrator fee (1%, to stx.fan)")) === "50 sats" && (await kv("Integrator fee recipient (stx.fan)")) === "SP3PCJ68JW050YKQ9106JP11TXWS46163HX7NG6XH");
+check("sBTC into the pool", (await kv("sBTC into the pool")) === "4,925 sats");
+check("tier defaults to low with the relay minimum shown", (await kv("Network fee")) === "low, 0.01 STX (10,000 uSTX)" && (await text(".tier.sel .tname")) === "low" && (await text(".tier.sel .tmin")) === "sponsor minimum");
 check("slippage defaults to 10 percent for a small swap", (await page.inputValue(".slip-in")) === "10");
-check("min-out from the SDK", (await kv("Min-out")) === "13.502107 STX (13,502,107 uSTX)");
+check("minimum you receive from the SDK", (await kv("Minimum you receive")) === "13.502107 STX (13,502,107 uSTX)");
 check("price impact shown in percent", (await kv("Price impact")) === "0%");
 check("all three pools read, none unavailable", (await kv("Pools read")).includes("bitflow-xyk") && (await kv("Pools read")).includes("bitflow-dlmm-v2") && !(await kv("Pools read")).includes("unavailable"));
-check("read stamp with time and Stacks tip", /read \d\d:\d\d:\d\d, Stacks tip 8,923,977/.test(await text(".readerline.stamp")));
+check("read stamp with time and the latest Stacks block", /read \d\d:\d\d:\d\d; latest Stacks block 8,923,977; 1 sponsor service reachable/.test(await text(".readerline.stamp")));
+check("latest Bitcoin block in How this works", (await kv("Latest Bitcoin block")) === "962,700");
 check("Refresh control present", (await page.locator(".linkbtn", { hasText: "Refresh" }).count()) === 1);
 check("Continue enabled on a valid quote", !(await primary().isDisabled()) && (await primary().textContent()).includes("Continue"));
 await invariants("happy step 2", 2);
@@ -211,12 +213,12 @@ await page.fill(".unit-row input", "5000");
 await page.fill(".slip-in", "0.05");
 check("slippage below 0.1 rejected", (await text(".status.err")).includes("Slippage must be a percentage from 0.1 to 99"));
 await page.fill(".slip-in", "2");
-check("slippage 2 percent moves min-out", (await kv("Min-out")) === "14.702295 STX (14,702,295 uSTX)");
+check("slippage 2 percent moves the minimum", (await kv("Minimum you receive")) === "14.702295 STX (14,702,295 uSTX)");
 await page.click(".hint a"); // use the default
 check("slippage default restored", (await page.inputValue(".slip-in")) === "10");
 // tier override
 await page.click(".tier:nth-child(3)");
-check("high tier selectable, network fee row follows", (await kv("Network fee (tier)")) === "high: 1 STX (1,000,000 uSTX)");
+check("high tier selectable, network fee row follows", (await kv("Network fee")) === "high, 1 STX (1,000,000 uSTX)");
 await page.click(".tier:nth-child(1)");
 // refresh re-reads
 const stampBefore = await text(".readerline.stamp");
@@ -228,16 +230,17 @@ check("Refresh re-reads and restamps", (await text(".readerline.stamp")) !== sta
 
 // step 3
 await primary().click();
-await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and swap");
 check("rail: 1 and 2 complete, 3 is the tab", JSON.stringify(await railStates()) === JSON.stringify(["complete", "complete", "tab", "locked"]));
 const pcs = await text(".pcs");
-check("post-condition 1 in plain words: exactly the swap amount of sBTC", pcs.includes("You send exactly 5,000 sats (0.00005000 BTC) of sBTC") && pcs.includes("25 sats default provider fee") && pcs.includes("50 sats integrator fee") && pcs.includes("4,925 sats net input"));
-check("post-condition 2: exactly the tier in STX", pcs.includes("You send exactly 0.01 STX (10,000 uSTX)") && pcs.includes("network fee to the sponsor"));
-check("post-condition 3: pool sends at least min-out", pcs.includes("velar-univ2-70 (SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070) sends you at least 13.502107 STX (13,502,107 uSTX)"));
+check("post-condition 1 in plain words: exactly the swap amount of sBTC", pcs.includes("You send exactly 5,000 sats (0.00005000 BTC) of sBTC") && pcs.includes("25 sats default provider fee") && pcs.includes("50 sats integrator fee to stx.fan") && pcs.includes("4,925 sats into the pool"));
+check("post-condition 2: exactly the tier in STX", pcs.includes("You send exactly 0.01 STX (10,000 uSTX), the low network fee, to the sponsor"));
+check("post-condition 3: pool sends at least the minimum; the pool contract in How this works", pcs.includes("velar-univ2-70 sends you at least 13.502107 STX (13,502,107 uSTX), your minimum") && (await kv("Pool contract")) === "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070");
 check("nothing else moves", pcs.includes("Nothing else moves"));
-check("relay list names the fixture relay with its minimum tier and opening bid", (await kv("Relays accepting")).includes(RELAY) && (await kv("Relays accepting")).includes("minimum low") && (await kv("Relays accepting")).includes("opens at 0.003 STX"));
+check("sponsor service list names the fixture relay and its opening bid", (await kv("Sponsor services for the low fee level")).includes(RELAY) && (await kv("Sponsor services for the low fee level")).includes("bids 0.003 STX to the miner"));
+check("limits: sBTC sent exactly (eq pool), STX exactly, pool at least", (await text(".pcs")).includes("You send exactly 5,000 sats") && (await text(".pcs")).includes("You send exactly 0.01 STX") && (await text(".pcs")).includes("sends you at least 13.502107 STX") && !(await text(".pcs")).includes("at most"));
 check("contract principal shown", (await kv("Contract")) === CONTRACT);
-check("primary reads Sign And Sponsor", (await primary().textContent()).trim() === "Sign And Sponsor");
+check("primary reads Sign and Swap", (await primary().textContent()).trim() === "Sign and Swap");
 check("Back label aligns with content edge", await page.evaluate(() => {
   const body = document.querySelector(".panel .body").getBoundingClientRect();
   const back = document.querySelector(".foot .btn-tertiary").getBoundingClientRect();
@@ -254,11 +257,11 @@ check("call fields: sponsored true, fee 0, deny mode, mainnet, 3 post-conditions
 check("post-conditions: ft eq amount, stx eq tier, pool stx gte min-out", JSON.stringify(req.params.postConditions.map((p) => [p.type, p.address, p.condition, p.amount])) === JSON.stringify([
   ["ft-postcondition", USER, "eq", "5000"], ["stx-postcondition", USER, "eq", "10000"], ["stx-postcondition", "SP20X3DC5R091J8B6YPQT638J8NR1W83KN6TN5BJY.univ2-pool-v1_0_0-0070", "gte", "13502107"]]));
 check("URL carries txid, origin and nonce after broadcast, ordered chain, txid, origin, nonce, api, fixture", new RegExp(`\\?chain=mainnet&txid=${TXID}&origin=${USER}&nonce=5&api=[^&]+&fixture=happy$`).test(page.url()), page.url());
-check("done step names the wallet nonce it follows", (await kv("Wallet nonce")) === `${USER} #5`);
+check("done step names the transaction nonce it follows, in How this works", (await kv("Transaction nonce")) === "5" && (await kv("Account")) === USER && (await text(".panel .how-body")).includes("the next one after its last confirmed transaction"));
 check("rail: 1 to 3 complete, 4 is the tab", JSON.stringify(await railStates()) === JSON.stringify(["complete", "complete", "complete", "tab"]));
 check("done step shows txid link to the explorer", (await page.getAttribute(".panel .kv a", "href")) === `https://explorer.hiro.so/txid/0x${TXID}?chain=mainnet`);
-check("relay used, sponsor, and status pending", (await kv("Relay used")) === RELAY && (await kv("Sponsor")) === "SP3TB3AJ0XMZ9S6CGY2CQ6R06H1Z6DJQ1SH15ZP2H" && (await text(".panel .badge")) === "pending");
-check("polling copy: every 10s with elapsed", (await text(".panel .status.info")).includes("Checking every 10s"));
+check("sponsor service, sponsor address, and status pending", (await kv("Sponsor service")) === RELAY && (await kv("Sponsor address")) === "SP3TB3AJ0XMZ9S6CGY2CQ6R06H1Z6DJQ1SH15ZP2H" && (await text(".panel .badge")) === "pending");
+check("polling copy: every 10 seconds with elapsed", (await text(".panel .status.info")).includes("Checking every 10 seconds") && (await text(".panel .status.info")).includes("so far"));
 await invariants("happy step 4 pending", 4);
 await shot("happy-step4-pending");
 await page.waitForFunction(() => document.querySelector(".panel .badge")?.textContent === "success", null, { timeout: 45000 });
@@ -286,7 +289,7 @@ check("second poll (10s later) reads success", true);
   }));
   check("ledger: old single-value rows are gone", (await kv("STX received")) === null && (await kv("Net STX kept")) === null);
 }
-check("Next steps section present on step 4 only", (await text(".next-steps h4")) === "Next steps" && (await text(".next-steps p")).includes("you hold STX for gas"));
+check("Next steps section present on step 4 only", (await text(".next-steps h4")) === "Next steps" && (await text(".next-steps p")).includes("You now hold STX for gas"));
 await shot("happy-step4-success");
 // read-only views after broadcast
 await page.click(".rail-item.complete >> nth=2");
@@ -301,7 +304,7 @@ check("next steps absent on the read-only step 3", (await page.locator(".next-st
 await shot("happy-step3-readonly");
 await page.click(".rail-item.complete >> nth=1");
 await page.waitForSelector(".kvs");
-check("completed step 2 read-only summary carries the committed values", (await kv("Slippage")) === "10%" && (await kv("Min-out")) === "13.502107 STX (13,502,107 uSTX)");
+check("completed step 2 read-only summary carries the committed values", (await kv("Slippage")) === "10%" && (await kv("Minimum you receive")) === "13.502107 STX (13,502,107 uSTX)");
 await shot("happy-step2-readonly");
 await page.click(".rail-item.complete >> nth=0");
 check("step 1 revisit shows the connected account", (await kv("Connected account")) === USER);
@@ -314,8 +317,8 @@ await connectLeather();
 await quoteReady();
 check("velar-down: Velar listed as unavailable", (await kv("Pools read")).includes("velar-univ2-70 unavailable"));
 check("velar-down: no zero for Velar anywhere", !/velar-univ2-70 0 STX/.test(await body()));
-check("velar-down: reader explains unavailable is not zero", (await text(".panel .status.info")).includes("velar-univ2-70 is unavailable, not zero"));
-check("velar-down: XYK wins", (await kv("Pool used")) === "bitflow-xyk (pool id 1)" && (await kv("Quote")) === "14.976181 STX (14,976,181 uSTX)");
+check("velar-down: the quote leaves the unread pool out", (await text(".panel .status.info")).includes("velar-univ2-70 could not be read") && (await text(".panel .status.info")).includes("so the quote leaves it out"));
+check("velar-down: XYK wins", (await kv("Pool")) === "bitflow-xyk" && (await kv("Quote")) === "14.976181 STX (14,976,181 uSTX)");
 check("velar-down: Continue still enabled", !(await primary().isDisabled()));
 await invariants("velar-down step 2", 2);
 await shot("velar-down-step2-amount");
@@ -324,10 +327,10 @@ await shot("velar-down-step2-amount");
 await open("no-relay");
 await connectLeather();
 await quoteReady();
-check("no-relay: error names the missing relay", (await text(".status.err")).includes("No relay is reachable"));
-check("no-relay: relay minimum unknown in tier hint", (await text(".tiers + .hint")).includes("no relay reachable"));
+check("no-relay: error names the missing sponsor service", (await text(".status.err")).includes("No sponsor service answered"));
+check("no-relay: relay minimum unknown in tier hint", (await text(".tiers + .hint")).includes("no sponsor service answered"));
 check("no-relay: Continue disabled", await primary().isDisabled());
-check("no-relay: reader line counts 0 reachable", (await text(".readerline.stamp")).includes("0 reachable"));
+check("no-relay: reader line counts 0 reachable", (await text(".readerline.stamp")).includes("0 sponsor services reachable"));
 await invariants("no-relay step 2", 2);
 await shot("no-relay-step2-amount");
 
@@ -336,8 +339,8 @@ await open("min-out-below-tier");
 await connectLeather();
 await quoteReady();
 check("min-out-below-tier: tier defaults to the relay minimum mid", (await text(".tier.sel .tname")) === "mid");
-check("min-out-below-tier: low tier disabled as below the relay minimum", (await page.locator(".tier.off").count()) === 1 && (await text(".tier.off .tmin")) === "below relay minimum");
-check("min-out-below-tier: inline MIN_OUT_BELOW_TIER error with the SDK message", (await text(".status.err")).includes("Min-out below tier") && (await text(".status.err")).includes("below the mid network fee of 100000 uSTX: raise the amount, lower the tier, or lower the slippage"));
+check("min-out-below-tier: low tier disabled as below the relay minimum", (await page.locator(".tier.off").count()) === 1 && (await text(".tier.off .tmin")) === "below the sponsor minimum");
+check("min-out-below-tier: inline error names the minimum and the fee in plain words", (await text(".status.err")).includes("The minimum you would receive") && (await text(".status.err")).includes("is below the mid network fee of 0.1 STX (100,000 uSTX). Raise the amount, choose a lower fee level, or lower the slippage."));
 check("min-out-below-tier: Continue disabled", await primary().isDisabled());
 await invariants("min-out-below-tier step 2", 2);
 await shot("min-out-below-tier-step2-amount");
@@ -349,24 +352,24 @@ await open("tx-abort-1020");
 await connectLeather();
 await quoteReady();
 await primary().click();
-await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and swap");
 await primary().click();
 await page.waitForFunction(() => document.querySelector(".panel .badge")?.textContent === "abort_by_response", null, { timeout: 30000 });
 check("abort: status badge shows the abort", (await text(".panel .badge")) === "abort_by_response");
-check("abort: explainTxFailure text for u1020", (await text(".status.err")).includes("Bitflow XYK: output below minimum (price moved).") && (await text(".status.err")).includes("Re-quote and retry with 2 or 5 percent slippage."));
+check("abort: explainTxFailure text for u1020", (await text(".status.err")).includes("The pool paid less than your minimum because the price moved (Bitflow XYK).") && (await text(".status.err")).includes("Quote again and retry with 2 or 5 percent slippage."));
 check("vocabulary: the sponsor's own cost is always the miner fee, never the network fee", await page.evaluate(() => {
   const t = document.body.innerText;
   return !/sponsor[^.]*pays the network fee/i.test(t) && !/sponsor paid the network fee/i.test(t) && !/chain charged/i.test(t);
 }));
-check("abort: raw result and who paid", (await text(".status.err")).includes("(err u1020)") && (await text(".status.err")).includes("The sponsor paid the miner fee; you paid nothing."));
+check("abort: raw result and who paid the miner fee", (await text(".status.err")).includes("(err u1020)") && (await text(".status.err")).includes("The sponsor paid the miner fee.") && !(await text(".status.err")).includes("you paid nothing"));
 check("abort: no ledger and no STX received row", (await page.locator(".ledger").count()) === 0 && (await kv("STX received")) === null);
-check("abort: retry buttons for 2 and 5 percent", (await page.locator(".foot .btn", { hasText: "Retry With 2 Percent Slippage" }).count()) === 1 && (await page.locator(".foot .btn", { hasText: "Retry With 5 Percent Slippage" }).count()) === 1);
+check("abort: retry buttons for 2 and 5 percent", (await page.locator(".foot .btn", { hasText: "Retry with 2 Percent Slippage" }).count()) === 1 && (await page.locator(".foot .btn", { hasText: "Retry with 5 Percent Slippage" }).count()) === 1);
 await invariants("tx-abort step 4", 4);
 await shot("tx-abort-1020-step4-abort");
 await page.click(".foot .btn-primary");
 await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Swap amount");
 await quoteReady();
-check("retry: back on step 2 with slippage preset to 2", (await page.inputValue(".slip-in")) === "2" && (await kv("Min-out")) === "14.702295 STX (14,702,295 uSTX)");
+check("retry: back on step 2 with slippage preset to 2", (await page.inputValue(".slip-in")) === "2" && (await kv("Minimum you receive")) === "14.702295 STX (14,702,295 uSTX)");
 check("retry: txid left the URL, steps 3 and 4 locked", !page.url().includes("txid=") && JSON.stringify(await railStates()) === JSON.stringify(["complete", "tab", "locked", "locked"]));
 await shot("tx-abort-1020-step2-retry");
 
@@ -375,7 +378,7 @@ await open("tx-success");
 await connectLeather();
 await quoteReady();
 await primary().click();
-await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and swap");
 await primary().click();
 await page.waitForFunction(() => document.querySelector(".panel .badge")?.textContent === "success", null, { timeout: 30000 });
 check("tx-success: success on the first poll", (await ledger("STX"))?.rows.at(-1)[2] === "14.992342" && (await kv("Mined in Stacks block")) === "8,923,980");
@@ -388,7 +391,7 @@ await open("tx-replaced");
 await connectLeather();
 await quoteReady();
 await primary().click();
-await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and swap");
 await primary().click();
 await page.waitForFunction(() => document.querySelector(".panel .badge.b-ok")?.textContent === "success", null, { timeout: 30000 });
 check("tx-replaced: the original txid row is kept and marked Replaced by fee", (await kv("Transaction")).startsWith(`0x${TXID}`) && (await kv("Transaction")).includes("Replaced by fee"));
@@ -403,19 +406,19 @@ await open("tx-other-sender");
 await connectLeather();
 await quoteReady();
 await primary().click();
-await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and swap");
 await primary().click();
 await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Done", null, { timeout: 30000 });
 await page.waitForTimeout(1500);
 check("tx-other-sender: stays pending, no Mined as row, no Replaced badge", (await text(".panel .badge")) === "pending" && (await kv("Mined as")) === null && !(await kv("Transaction")).includes("Replaced"));
-check("tx-other-sender: the txid 404 is reported as the last read while pending", (await text(".panel .status.info")).includes("404"));
+check("tx-other-sender: the txid 404 sits in How this works as the last read, not on the status line", (await kv("Last read")).includes("404") && !(await text(".panel .status.info")).includes("404"));
 
 // ---------- tx-twin-pending: two transactions for the nonce in the mempool ----------
 await open("tx-twin-pending");
 await connectLeather();
 await quoteReady();
 await primary().click();
-await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and sponsor");
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and swap");
 await primary().click();
 await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Done", null, { timeout: 30000 });
 await page.waitForFunction(() => [...document.querySelectorAll(".panel .kv > span:first-child")].some((k) => k.textContent === "Also pending"), null, { timeout: 15000 });
@@ -433,7 +436,7 @@ await page.waitForSelector(".rail-tab");
 await page.waitForFunction(() => document.querySelector(".panel .badge.b-ok")?.textContent === "success", null, { timeout: 30000 });
 check("?txid=&origin=&nonce= reload resolves the replaced transaction", (await kv("Mined as")) === `0x${REPLACEMENT_TXID}` && (await kv("Transaction")).includes("Replaced by fee"));
 await page.click(".rail-item.complete >> nth=2");
-check("step 3 after reload explains the missing details", (await text(".panel")).includes("signing details are not kept after a reload"));
+check("step 3 after reload explains the missing details", (await text(".panel")).includes("The signing details do not survive a reload."));
 await shot("reload-step3-from-url");
 
 // ---------- header connect path and the wallet selector modal ----------
@@ -443,7 +446,7 @@ await page.click(".hdr .wallet-menu button");
 await page.waitForSelector(".modal .pick");
 check("two wallets installed: selector modal offers both", (await page.locator(".modal .pick button").count()) === 2);
 check("Xverse is offered untested, not blocked", (await page.locator(".modal .pick button", { hasText: "Xverse" }).count()) === 1 && (await page.locator(".modal .pick button", { hasText: "Xverse" }).locator(".b-warn").count()) === 1);
-check("modal states the relay refusal rule", (await text(".modal p")).includes("relay refuses any transaction lacking the exact post-conditions"));
+check("modal states the sponsor refusal rule in plain words", (await text(".modal p")).includes("A wallet must keep the three limits on the transaction, or the sponsor refuses it."));
 check("no em dash in the modal", await noEmDash());
 await shot("wallet-selector-modal");
 await page.click(".modal .row button");
@@ -451,7 +454,7 @@ check("modal dismissed", (await page.locator(".modal").count()) === 0);
 
 // ---------- reset ----------
 await page.click(".reset-btn");
-check("reset popover explains nothing is stored", (await text(".reset-pop")).includes("Nothing is stored"));
+check("reset popover explains nothing is stored", (await text(".reset-pop")).includes("This page stores nothing"));
 await page.click(".reset-pop .btn-secondary");
 check("cancel closes the popover", (await page.locator(".reset-pop").count()) === 0);
 
@@ -464,7 +467,7 @@ check("disclaimer: as is, without warranty of any kind", legal.includes("provide
 check("disclaimer: no guarantee of sponsorship, execution, price, availability or fitness", legal.includes("guarantee of sponsorship, execution, price, availability, or fitness"));
 check("disclaimer: responsibility rests with the user or integrator", legal.includes("rests with the user or the integrator"));
 check("disclaimer: relay may refuse any transaction for any reason", legal.includes("refuse any transaction for any reason"));
-check("disclaimer: immutable contract, no reversal", legal.includes("cannot be changed") && legal.includes("nobody can reverse it"));
+check("disclaimer: immutable contract, no reversal", legal.includes("cannot be changed") && legal.includes("it cannot be reversed by stx.fan, a relay operator, or the contract owner"));
 check("disclaimer: no governing law clause, no contact address, no Stacks Labs", !legal.includes("Governing law") && !legal.includes("stackslabs.com") && !legal.includes("Stacks Labs") && legal.includes("stx.fan"));
 check("disclaimer: not legal advice", legal.includes("is legal, financial, investment, or tax advice"));
 check("disclaimer: use at your own risk and do not use if you disagree", legal.includes("at your own risk") && legal.includes("do not use"));

@@ -140,7 +140,7 @@ c   = amount * integrator-bips / 10000      (0 when integrator is none)
 net = amount - b - c
 ```
 
-The service fee floors to `0` below `200` sats: a sub-`200` sat swap carries no service fee and still pays the rebate. Worked examples, all asserted in [`contracts/tests/sbtc-gas-swap.test.ts`](../contracts/tests/sbtc-gas-swap.test.ts):
+The service fee floors to `0` below `200` sats: a sub-`200` sat swap carries no service fee and still pays the rebate. At `100` integrator bips the integrator fee floors to `0` below `100` sats the same way. Worked examples, all asserted in [`contracts/tests/sbtc-gas-swap.test.ts`](../contracts/tests/sbtc-gas-swap.test.ts):
 
 | amount (sats) | integrator-bips | b | c | net |
 | --- | --- | --- | --- | --- |

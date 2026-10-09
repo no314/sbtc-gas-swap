@@ -1,9 +1,9 @@
 // The four step panels plus per-step info copy. One exported component per step; the shell,
 // routing and URL contract live in app.jsx; constants and atoms in core.jsx.
 import React, { useState, useEffect } from "react";
-import { buildSwapCall, defaultTier, defaultSlippageBips, minOutFor, explainRelayError, explainTxFailure, TIERS } from "@no314/sbtc-gas-swap";
+import { buildSwapCall, defaultTier, defaultSlippageBips, minOutFor, explainRelayError, explainTxFailure, TIERS, POOLS } from "@no314/sbtc-gas-swap";
 import {
-  CONTRACT_ID, DOCS, SBTC_BRIDGE, TIER_LIST, INTEGRATOR, INTEGRATOR_BIPS, Btn, Field, Badge, KV, StatusLine, CheckRow, ExtLink, GatedBtn, PanelFoot,
+  CONTRACT_ID, DOCS, SBTC_BRIDGE, TIER_LIST, INTEGRATOR, INTEGRATOR_BIPS, Btn, Field, Badge, KV, StatusLine, CheckRow, ExtLink, GatedBtn, PanelFoot, How,
   useInterval, useElapsed, fmtElapsed, walletErrMsg,
 } from "./core.jsx";
 import {
@@ -18,7 +18,7 @@ const group = (n) => Number(n).toLocaleString("en-US");
 export function Step1({ account, walletName, catalog, onConnectWith, onDisconnect, connErr, onContinue, reloadedFromUrl }) {
   if (account) {
     return <div className="body-wrap"><div className="body">
-      <p className="step-sub">A wallet is connected. Continue to enter the swap amount, or disconnect to use another account.</p>
+      <p className="step-sub">Your wallet is connected. Continue to the amount, or disconnect to use another account.</p>
       <div className="kvs">
         <KV label="Connected account">{account}</KV>
         <KV label="Wallet" mono={false}>{walletName || "-"}</KV>
@@ -31,11 +31,11 @@ export function Step1({ account, walletName, catalog, onConnectWith, onDisconnec
     </PanelFoot></div>;
   }
   return <div className="body-wrap"><div className="body">
-    <p className="step-sub">Connect the wallet that holds your sBTC; no STX is needed. Leather was tested with this swap: it keeps the post-conditions the swap depends on and returns a sponsored transaction unbroadcast. The other wallets are offered untested. The relay refuses any transaction lacking the exact post-conditions, so a wallet that drops them cannot get sponsored.</p>
-    {reloadedFromUrl ? <StatusLine kind="info">This page was opened with a transaction id in the URL. Reconnect a wallet only to start another swap.</StatusLine> : null}
+    <p className="step-sub">Connect the wallet that holds your sBTC. You need no STX: a sponsor pays the miner fee, and the swap repays the sponsor in STX from what the pool pays you. We tested Leather with this swap. Other wallets are listed untested.</p>
+    {reloadedFromUrl ? <StatusLine kind="info">You opened this page from a transaction id. Connect a wallet when you want another swap.</StatusLine> : null}
     <div className="pick wallet-pick">
       {catalog.map((w) => {
-        const tierBadge = w.tier === "verified" ? <Badge k="ok">verified</Badge> : w.tier === "untested" ? <Badge k="warn">offered untested</Badge> : <Badge k="bad">not supported</Badge>;
+        const tierBadge = w.tier === "verified" ? <Badge k="ok">tested</Badge> : w.tier === "untested" ? <Badge k="warn">untested</Badge> : <Badge k="bad">not supported</Badge>;
         if (w.installed && w.supported) return <button key={w.key} onClick={() => onConnectWith(w)}>
           <span className="id" style={{ fontFamily: "var(--font-body)" }}>{w.name} {tierBadge}</span>
           <span className="meta">Connect</span>
@@ -46,12 +46,16 @@ export function Step1({ account, walletName, catalog, onConnectWith, onDisconnec
         </div>;
         return <div key={w.key} className="pick-blocked">
           <span className="id" style={{ fontFamily: "var(--font-body)" }}>{w.name} {tierBadge}</span>
-          <span className="meta">drops post-conditions</span>
+          <span className="meta">drops the limits</span>
         </div>;
       })}
     </div>
-    <p className="step-sub" style={{ marginTop: 16, marginBottom: 0 }}>Untested wallets: approve the first real transaction only after the wallet's own signing screen lists the three post-conditions and a fee of 0.</p>
+    <p className="step-sub" style={{ marginTop: 16, marginBottom: 0 }}>Untested wallet: before you approve, check that its signing screen lists the three limits and a fee of 0.</p>
     <StatusLine kind="err">{connErr}</StatusLine>
+    <How>
+      <p>Your wallet signs a sponsored transaction, one that someone else pays the miner fee for, and hands it back to this page without broadcasting it. The transaction carries three post-conditions, limits the blockchain enforces on what it may move: the sBTC you send, the network fee in STX, and the minimum STX you receive.</p>
+      <p>The sponsor checks those limits byte for byte and refuses a transaction without them. A wallet that drops post-conditions cannot be sponsored.</p>
+    </How>
   </div>
   <PanelFoot></PanelFoot></div>;
 }
@@ -62,11 +66,11 @@ export function Step2({ account, onConnect, verification, relays, snapshot, snap
     return <div className="body-wrap"><div className="body">
       <div className="kvs">
         <KV label="Swap amount">{fmtBoth(committed.amountSats)}</KV>
-        <KV label="Pool used">{poolName(committed.call ? Number(committed.call.functionArgs[3].value) : committed.poolId)}</KV>
+        <KV label="Pool">{poolName(committed.call ? Number(committed.call.functionArgs[3].value) : committed.poolId)}</KV>
         <KV label="Quote">{fmtStxBoth(committed.quoteOut)}</KV>
-        <KV label="Network fee (tier)">{committed.tier}: {fmtStxBoth(TIERS[committed.tier])}</KV>
+        <KV label="Network fee">{committed.tier}, {fmtStxBoth(TIERS[committed.tier])}</KV>
         <KV label="Slippage">{fmtBips(committed.slippageBips)}</KV>
-        <KV label="Min-out">{fmtStxBoth(committed.minOut)}</KV>
+        <KV label="Minimum you receive">{fmtStxBoth(committed.minOut)}</KV>
       </div>
     </div><PanelFoot onBack={onBack}></PanelFoot></div>;
   }
@@ -96,25 +100,25 @@ export function Step2({ account, onConnect, verification, relays, snapshot, snap
   const blockers = [];
   if (!verified) blockers.push("contract not verified");
   if (!snapshot) blockers.push("pools not read yet");
-  if (sats == null) blockers.push("swap amount missing");
+  if (sats == null) blockers.push("no amount yet");
   if (snapshot && balance == null) blockers.push("sBTC balance unavailable");
   if (insufficient) blockers.push("amount above balance");
-  if (quote && !best) blockers.push("no pool quotes this amount");
+  if (quote && !best) blockers.push("no quote for this amount");
   if (slippageBips == null) blockers.push("slippage out of range");
-  if (buildErr) blockers.push(buildErr.code);
-  if (!ranked.length) blockers.push("no relay for this tier");
+  if (buildErr) blockers.push(buildErr.code === "MIN_OUT_BELOW_TIER" ? "minimum below the network fee" : buildErr.code);
+  if (!ranked.length) blockers.push("no sponsor for this fee level");
   const canContinue = account && blockers.length === 0 && call;
 
   const tierRank = (t) => TIER_LIST.findIndex((x) => x.key === t);
 
   return <div className="body-wrap"><div className="body">
-    <p className="step-sub">Enter the sBTC swap amount; the quote is computed from pool reserves read at the stamped moment and changes only on Refresh. The network fee is the STX you repay the sponsor inside the swap. It is paid out of what the pool returns, so the min-out must stay at or above it. Nothing is stored: reloading this page starts over.</p>
+    <p className="step-sub">Enter how much sBTC to swap. The quote comes from the pools' balances at the time shown; press Refresh for a new one. The network fee is the STX you repay the sponsor, taken from the STX the pool pays you.</p>
 
     <div className="readerline">
-      {verification == null ? <><span className="spin"></span> reading contract source</>
-        : verification.ok ? <><Badge k="ok">contract verified</Badge> structure hash <span className="mono">{verification.liveHash.slice(0, 12)}</span> at publish height <span className="mono">{group(verification.publishHeight)}</span></>
-        : verification.error ? <><Badge k="idle">contract unavailable</Badge> the source could not be read: <span className="mono">{verification.error}</span>. Refresh to retry.</>
-        : <><Badge k="bad">contract mismatch</Badge> live structure hash <span className="mono">{verification.liveHash.slice(0, 12)}</span> differs from the pinned <span className="mono">{verification.pinnedHash.slice(0, 12)}</span>; the swap is blocked.</>}
+      {verification == null ? <><span className="spin"></span> reading the contract</>
+        : verification.ok ? <><Badge k="ok">contract verified</Badge> the live contract matches the reviewed source</>
+        : verification.error ? <><Badge k="idle">contract unavailable</Badge> this page could not read the contract: <span className="mono">{verification.error}</span>. Refresh to retry.</>
+        : <><Badge k="bad">contract mismatch</Badge> the live contract does not match the reviewed source (live structure hash <span className="mono">{verification.liveHash}</span>, reviewed <span className="mono">{verification.pinnedHash}</span>). Swapping is blocked.</>}
     </div>
 
     <div className="two amount-row">
@@ -126,16 +130,16 @@ export function Step2({ account, onConnect, verification, relays, snapshot, snap
             <option value="sats">sats</option><option value="btc">BTC</option>
           </select>
         </div>
-        <div className="hint">{sats ? <span className="mono">{swap.unit === "sats" ? fmtBtc(sats) : fmtSats(sats)}</span> : "sats and BTC are both shown once an amount is entered"}</div>
+        <div className="hint">{sats ? <span className="mono">{swap.unit === "sats" ? fmtBtc(sats) : fmtSats(sats)}</span> : "shown in sats and BTC once you enter an amount"}</div>
       </Field>
       <Field label="sBTC balance">
         <input className="in mono" readOnly value={!account ? "connect a wallet" : !snapshot ? (snapshotError ? "unavailable" : "reading") : balance == null ? "unavailable" : fmtBoth(balance)} />
-        <div className="hint">{snapshot && account && balance == null ? <span>balance read failed: <span className="mono">{snapshot.balanceError}</span></span> : "read with the pools; Refresh re-reads it"}</div>
+        <div className="hint">{snapshot && account && balance == null ? <span>this page could not read the balance: <span className="mono">{snapshot.balanceError}</span></span> : "read together with the pools; Refresh reads it again"}</div>
       </Field>
     </div>
 
     <div className="two tier-row">
-      <Field label="Network fee (STX, repaid to the sponsor inside the swap)">
+      <Field label="Network fee (STX, repaid to the sponsor)">
         <div className="tiers" role="radiogroup">
           {TIER_LIST.map((t) => {
             const below = relayMin ? tierRank(t.key) < tierRank(relayMin) : false;
@@ -144,28 +148,28 @@ export function Step2({ account, onConnect, verification, relays, snapshot, snap
                 onChange={() => setSwap((s) => ({ ...s, tier: t.key, tierTouched: true }))} style={{ accentColor: "var(--accent)" }} />
               <span className="tname">{t.key}</span>
               <span className="tval">{fmtStx(t.ustx)}</span>
-              {relayMin === t.key ? <span className="tmin">relay minimum</span> : below ? <span className="tmin">below relay minimum</span> : null}
+              {relayMin === t.key ? <span className="tmin">sponsor minimum</span> : below ? <span className="tmin">below the sponsor minimum</span> : null}
             </label>;
           })}
         </div>
-        <div className="hint">{relays == null ? "reading relays" : relayMin ? <span>default {autoTier} for this amount; the relay minimum is {relayMin}</span> : "no relay reachable: the relay minimum is unknown"}</div>
+        <div className="hint">{relays == null ? "reading the sponsor services" : relayMin ? <span>default for this amount: {autoTier}; sponsor minimum: {relayMin}</span> : "no sponsor service answered, so the minimum is unknown"}</div>
       </Field>
       <Field label="Slippage (percent, 0.1 to 99)">
         <input className="in mono slip-in" spellCheck="false" inputMode="decimal" value={slippageText}
           onChange={(e) => setSwap((s) => ({ ...s, slippageText: e.target.value, slippageTouched: true }))} />
-        <div className="hint">default {bipsToPct(autoSlip)}% for this amount (10% up to 30,000 sats, 1% above); {swap.slippageTouched ? <a href="#" onClick={(e) => { e.preventDefault(); setSwap((s) => ({ ...s, slippageTouched: false })); }}>use the default</a> : "edit to change"}</div>
+        <div className="hint">default {bipsToPct(autoSlip)}% for this amount (10% up to 30,000 sats, 1% above){swap.slippageTouched ? <>; <a href="#" onClick={(e) => { e.preventDefault(); setSwap((s) => ({ ...s, slippageTouched: false })); }}>use the default</a></> : null}</div>
       </Field>
     </div>
 
     <div className="kvs">
       <KV label="Swap amount">{sats ? fmtBoth(sats) : "-"}</KV>
-      <KV label="Pool used">{best ? `${poolName(best.poolId)} (pool id ${best.poolId})` : "-"}</KV>
-      <KV label="Quote (STX out for the net input)">{best ? fmtStxBoth(best.out) : "-"}</KV>
-      <KV label="Default provider fee (0.5% of the swap amount)">{quote ? fmtSats(quote.fees.serviceFee) : "-"}</KV>
-      <KV label="Integrator fee (1% of the swap amount)">{quote ? <span>{fmtSats(quote.fees.integratorFee)} to <span className="mono">{INTEGRATOR}</span></span> : "-"}</KV>
-      <KV label="Net input to the pool">{quote ? fmtSats(quote.fees.net) : "-"}</KV>
-      <KV label="Network fee (tier)">{`${tier}: ${fmtStxBoth(TIERS[tier])}`}</KV>
-      <KV label={`Min-out (quote minus ${slippageBips != null ? fmtBips(slippageBips) : "slippage"})`}>{minOut != null ? fmtStxBoth(minOut) : "-"}</KV>
+      <KV label="Pool">{best ? poolName(best.poolId) : "-"}</KV>
+      <KV label="Quote">{best ? fmtStxBoth(best.out) : "-"}</KV>
+      <KV label="Default provider fee (0.5%)">{quote ? fmtSats(quote.fees.serviceFee) : "-"}</KV>
+      <KV label="Integrator fee (1%, to stx.fan)">{quote ? fmtSats(quote.fees.integratorFee) : "-"}</KV>
+      <KV label="sBTC into the pool">{quote ? fmtSats(quote.fees.net) : "-"}</KV>
+      <KV label="Network fee">{`${tier}, ${fmtStxBoth(TIERS[tier])}`}</KV>
+      <KV label={`Minimum you receive (quote minus ${slippageBips != null ? fmtBips(slippageBips) : "slippage"})`}>{minOut != null ? fmtStxBoth(minOut) : "-"}</KV>
       <KV label="Price impact">{best ? fmtBips(best.impactBips) : "-"}</KV>
       <KV label="Pools read">{quote ? <span>
         {quote.quotes.map((p) => <span key={p.poolId} className="poolq">{poolName(p.poolId)} {p.out > 0n ? fmtStx(p.out) : (p.reason || "no quote")}</span>)}
@@ -174,24 +178,36 @@ export function Step2({ account, onConnect, verification, relays, snapshot, snap
     </div>
 
     <div className="readerline stamp">
-      {snapshot ? <span>read <span className="mono">{fmtStamp(snapshot.readAt)}</span>, Stacks tip <span className="mono">{snapshot.tip != null ? group(snapshot.tip) : "unavailable"}</span>{relays ? <>; relays read <span className="mono">{fmtStamp(relays.readAt)}</span>, {relays.infos.length} reachable</> : null}</span>
-        : snapshotError ? <span>pool read failed: <span className="mono">{snapshotError}</span></span>
-        : <><span className="spin"></span> reading pools</>}
+      {snapshot ? <span>read <span className="mono">{fmtStamp(snapshot.readAt)}</span>; latest Stacks block <span className="mono">{snapshot.tip != null ? group(snapshot.tip) : "unavailable"}</span>{relays ? <>; {relays.infos.length} sponsor {relays.infos.length === 1 ? "service" : "services"} reachable</> : null}</span>
+        : snapshotError ? <span>this page could not read the pools: <span className="mono">{snapshotError}</span></span>
+        : <><span className="spin"></span> reading the pools</>}
       <span className="spacer"></span>
       <button className="linkbtn" disabled={refreshing} onClick={onRefresh}><i className="ph ph-arrows-clockwise"></i>{refreshing ? "Refreshing" : "Refresh"}</button>
     </div>
 
-    {snapshot && snapshot.unavailable.length ? <StatusLine kind="info">{snapshot.unavailable.map((u) => <div key={u.poolId}>{poolName(u.poolId)} is unavailable, not zero: its read failed (<span className="mono">{u.error}</span>). The quote uses the pools that answered.</div>)}</StatusLine> : null}
+    {snapshot && snapshot.unavailable.length ? <StatusLine kind="info">{snapshot.unavailable.map((u) => <div key={u.poolId}>{poolName(u.poolId)} could not be read (<span className="mono">{u.error}</span>), so the quote leaves it out.</div>)}</StatusLine> : null}
     {amt.error ? <StatusLine kind="err">{amt.error}</StatusLine> : null}
     {insufficient ? <StatusLine kind="err">The swap amount {fmtSats(sats)} is above the sBTC balance {fmtSats(balance)}.</StatusLine> : null}
     {slippageBips == null ? <StatusLine kind="err">Slippage must be a percentage from 0.1 to 99 with at most two decimals.</StatusLine> : null}
     {quote && !best ? <StatusLine kind="err">No pool can quote this amount ({quote.error}). Raise the amount or Refresh.</StatusLine> : null}
-    {buildErr ? <StatusLine kind="err">{buildErr.code === "MIN_OUT_BELOW_TIER" ? "Min-out below tier: " : ""}{buildErr.message}.</StatusLine> : null}
-    {relays && !ranked.length ? <StatusLine kind="err">{relays.infos.length ? `No reachable relay accepts the ${tier} tier; the lowest relay minimum is ${relays.minTier}.` : "No relay is reachable, so nothing can sponsor the swap right now. Refresh to retry; the relay list comes from the sponsors.json published next to this page."}</StatusLine> : null}
+    {buildErr ? <StatusLine kind="err">{buildErr.code === "MIN_OUT_BELOW_TIER" && minOut != null
+      ? <span>The minimum you would receive, {fmtStxBoth(minOut)}, is below the {tier} network fee of {fmtStxBoth(TIERS[tier])}. Raise the amount, choose a lower fee level, or lower the slippage.</span>
+      : `${buildErr.message}.`}</StatusLine> : null}
+    {relays && !ranked.length ? <StatusLine kind="err">{relays.infos.length ? `No sponsor service accepts the ${tier} fee level; the lowest they accept is ${relays.minTier}.` : "No sponsor service answered, so nothing can pay for the swap right now. Refresh to retry."}</StatusLine> : null}
+    <How>
+      <p>The quote reads the three supported pools and picks the one that pays the most STX for the sBTC going into the pool after fees. The minimum you receive is the quote minus the slippage, the amount the price may move before the swap refuses. It must stay above the network fee, because the sponsor is repaid out of it. This page stores nothing; a reload starts over.</p>
+      <div className="kvs">
+        {verification && verification.ok ? <KV label="Contract structure hash">{verification.liveHash}</KV> : null}
+        {verification && verification.ok ? <KV label="Contract published in Stacks block">{group(verification.publishHeight)}</KV> : null}
+        <KV label="Integrator fee recipient (stx.fan)">{INTEGRATOR}</KV>
+        {snapshot ? <KV label="Latest Bitcoin block">{snapshot.burnTip != null ? group(snapshot.burnTip) : "unavailable"}</KV> : null}
+        {relays ? <KV label="Sponsor services read">{fmtStamp(relays.readAt)}, from the sponsors.json next to this page</KV> : null}
+      </div>
+    </How>
   </div>
   <PanelFoot onBack={onBack}>
     {account && blockers.length ? <span className="foot-note">blocked: {blockers.join(", ")}</span> : null}
-    <GatedBtn account={account} onConnect={onConnect} disabled={!canContinue} onClick={() => onContinue({ amountSats: sats, tier, slippageBips, poolId: best.poolId, quoteOut: best.out, minOut: call.minOut, fees: call.fees, call, quotedAt: snapshot.readAt, tip: snapshot.tip, ranked })}>
+    <GatedBtn account={account} onConnect={onConnect} disabled={!canContinue} onClick={() => onContinue({ amountSats: sats, tier, slippageBips, poolId: best.poolId, quoteOut: best.out, minOut: call.minOut, fees: call.fees, call, quotedAt: snapshot.readAt, tip: snapshot.tip, burnTip: snapshot.burnTip, ranked })}>
       Continue<i className="ph ph-arrow-right"></i></GatedBtn>
   </PanelFoot></div>;
 }
@@ -209,8 +225,8 @@ export function Step3({ clients, account, onConnect, committed, relays, onSponso
     return <div className="body-wrap"><div className="body">
       <div className="kvs">
         <KV label="Transaction"><a href={explorerTx(result.txid)} target="_blank" rel="noopener">{shortTxid(result.txid)}</a></KV>
-        <KV label="Relay used">{result.relay}</KV>
-        <KV label="Sponsor">{result.sponsor}</KV>
+        <KV label="Sponsor service">{result.relay}</KV>
+        <KV label="Sponsor address">{result.sponsor}</KV>
         <KV label="Miner fee paid by the sponsor">{fmtStxBoth(BigInt(result.fee || 0))}</KV>
       </div>
     </div><PanelFoot onBack={onBack}></PanelFoot></div>;
@@ -221,9 +237,9 @@ export function Step3({ clients, account, onConnect, committed, relays, onSponso
     setPhase("requoting");
     const f = await freshQuoteFor(clients, c.amountSats, c.poolId);
     setFresh(f);
-    if (!f.quote || f.quote.out === 0n) { setErr(<span>The fresh read of {poolName(c.poolId)} did not answer, so the swap is blocked. Go back and re-quote.</span>); setPhase("idle"); return; }
+    if (!f.quote || f.quote.out === 0n) { setErr(<span>{poolName(c.poolId)} did not answer the fresh read. Go back and quote again.</span>); setPhase("idle"); return; }
     if (f.quote.out < c.minOut) {
-      setErr(<span>Fresh quote {fmtStxBoth(f.quote.out)} is below the min-out {fmtStxBoth(c.minOut)} (the quote at step 2 was {fmtStxBoth(c.quoteOut)}). The swap is blocked; go back to re-quote, or raise the slippage.</span>);
+      setErr(<span>The price fell: the fresh quote {fmtStxBoth(f.quote.out)} is below your minimum {fmtStxBoth(c.minOut)} (the step 2 quote was {fmtStxBoth(c.quoteOut)}). Go back and quote again, or raise the slippage.</span>);
       setPhase("idle"); return;
     }
     const L = window.SGLib;
@@ -239,35 +255,47 @@ export function Step3({ clients, account, onConnect, committed, relays, onSponso
       // A sponsored call returns the signed, unbroadcast transaction; there is no txid yet, so
       // the usual 64-hex txid check does not apply here (PROMPT.md section 12).
       hex = String((res && (res.transaction || res.txRaw || res.tx)) || "").replace(/^0x/i, "");
-      if (!/^[0-9a-f]{100,}$/i.test(hex)) { setErr("The wallet returned no signed transaction. A wallet that broadcasts instead of returning the signed bytes cannot be sponsored."); setPhase("idle"); return; }
+      if (!/^[0-9a-f]{100,}$/i.test(hex)) { setErr("The wallet returned no signed transaction. A wallet that broadcasts the transaction itself cannot be sponsored."); setPhase("idle"); return; }
     } catch (e) { setErr(walletErrMsg(e) || ("The wallet request failed: " + ((e && e.message) || e))); setPhase("idle"); return; }
     setPhase("sponsoring");
     const sub = await clients.relay.submit(hex, ranked).catch((e) => ({ ok: false, attempts: [{ relay: "-", code: "RELAY_UNREACHABLE", message: String((e && e.message) || e) }] }));
     if (!sub.ok) {
-      setErr(<div>{sub.attempts.map((a, i) => { const x = explainRelayError(a.code); return <div key={i}><span className="mono">{a.relay}</span> ({a.code}): {x.title} {x.action}{a.message && a.message !== a.code ? <div className="hint">Relay said: <span className="mono">{a.message}</span></div> : null}</div>; })}{sub.attempts.length === 0 ? "No relay was tried." : null}</div>);
+      setErr(<div>{sub.attempts.map((a, i) => { const x = explainRelayError(a.code); return <div key={i}><span className="mono">{a.relay}</span> ({a.code}): {x.title} {x.action}{a.message && a.message !== a.code ? <div className="hint">The sponsor service said: <span className="mono">{a.message}</span></div> : null}</div>; })}{sub.attempts.length === 0 ? "No sponsor service was tried." : null}</div>);
       setPhase("idle"); return;
     }
     setPhase("idle");
     onSponsored({ txid: normTxid(sub.txid), relay: sub.relay, sponsor: sub.sponsor, fee: sub.fee, origin: account, originNonce: originNonceFromHex(hex) });
   }
 
-  const label = phase === "requoting" ? "Re-quoting" : phase === "signing" ? "Waiting For The Wallet" : phase === "sponsoring" ? "Sponsoring" : "Sign And Sponsor";
+  const label = phase === "requoting" ? "Re-quoting" : phase === "signing" ? "Waiting for the Wallet" : phase === "sponsoring" ? "Sending to the Sponsor" : "Sign and Swap";
+  // The sBTC limit follows the post-condition exactly: eq for pools that always consume the full
+  // input, lte for DLMM, which can fill part of the swap and leave the rest with the user.
+  const partialPool = POOLS[c.poolId] && POOLS[c.poolId].sbtcCondition === "lte";
   return <div className="body-wrap"><div className="body">
-    <p className="step-sub">Signing hands the wallet a sponsored transaction with fee 0 and exactly these three post-conditions; the wallet returns the signed bytes without broadcasting. A fresh quote is read immediately before signing and blocks the swap if it dropped below min-out. The first relay that accepts co-signs, pays the miner fee, and broadcasts.</p>
+    <p className="step-sub">Check the three limits below; your wallet shows the same three before you sign. The page reads a fresh quote first and stops if the price fell below your minimum. A sponsor then adds its signature, pays the miner fee, and broadcasts the transaction.</p>
     <div className="prereq pcs">
-      <div className="item"><i className="ph ph-shield-check"></i><span>You send exactly <span className="mono">{fmtBoth(c.amountSats)}</span> of sBTC: <span className="mono">{fmtSats(c.fees.serviceFee)}</span> default provider fee, <span className="mono">{fmtSats(c.fees.integratorFee)}</span> integrator fee, <span className="mono">{fmtSats(c.fees.net)}</span> net input to the pool.</span></div>
-      <div className="item"><i className="ph ph-shield-check"></i><span>You send exactly <span className="mono">{fmtStxBoth(TIERS[c.tier])}</span>: the {c.tier} network fee to the sponsor, who pays the miner fee.</span></div>
-      <div className="item"><i className="ph ph-shield-check"></i><span>{poolName(c.poolId)} (<span className="mono">{pool}</span>) sends you at least <span className="mono">{fmtStxBoth(c.minOut)}</span>, the min-out.</span></div>
-      <div className="item"><i className="ph ph-prohibit"></i><span>Nothing else moves: deny mode, and the relay refuses any other set of post-conditions.</span></div>
+      {partialPool
+        ? <div className="item"><i className="ph ph-shield-check"></i><span>You send at most <span className="mono">{fmtBoth(c.amountSats)}</span> of sBTC: <span className="mono">{fmtSats(c.fees.serviceFee)}</span> default provider fee, <span className="mono">{fmtSats(c.fees.integratorFee)}</span> integrator fee to stx.fan, up to <span className="mono">{fmtSats(c.fees.net)}</span> into the pool. This pool can fill part of the swap; you keep the sBTC it does not take.</span></div>
+        : <div className="item"><i className="ph ph-shield-check"></i><span>You send exactly <span className="mono">{fmtBoth(c.amountSats)}</span> of sBTC: <span className="mono">{fmtSats(c.fees.serviceFee)}</span> default provider fee, <span className="mono">{fmtSats(c.fees.integratorFee)}</span> integrator fee to stx.fan, <span className="mono">{fmtSats(c.fees.net)}</span> into the pool.</span></div>}
+      <div className="item"><i className="ph ph-shield-check"></i><span>You send exactly <span className="mono">{fmtStxBoth(TIERS[c.tier])}</span>, the {c.tier} network fee, to the sponsor, who pays the miner fee.</span></div>
+      <div className="item"><i className="ph ph-shield-check"></i><span>{poolName(c.poolId)} sends you at least <span className="mono">{fmtStxBoth(c.minOut)}</span>, your minimum.</span></div>
+      <div className="item"><i className="ph ph-prohibit"></i><span>Nothing else moves. The blockchain blocks any other transfer, and the sponsor refuses a transaction without these three limits.</span></div>
     </div>
     <div className="kvs">
       <KV label="Contract">{CONTRACT_ID}</KV>
-      <KV label="Quote at step 2">{fmtStxBoth(c.quoteOut)} (read <span>{fmtStamp(c.quotedAt)}</span>, tip {c.tip != null ? group(c.tip) : "-"})</KV>
-      <KV label={`Relays accepting the ${c.tier} tier`}>{ranked.length ? ranked.map((r) => <div key={r.url}>{r.url} (minimum {r.minTier}, opens at {fmtStx(BigInt(r.feeEstimate[c.tier] || 0))})</div>) : "none"}</KV>
+      <KV label="Quote at step 2">{fmtStxBoth(c.quoteOut)} (read <span>{fmtStamp(c.quotedAt)}</span> at Stacks block {c.tip != null ? group(c.tip) : "-"})</KV>
+      <KV label={`Sponsor services for the ${c.tier} fee level`}>{ranked.length ? ranked.map((r) => <div key={r.url}>{r.url} (bids {fmtStx(BigInt(r.feeEstimate[c.tier] || 0))} to the miner)</div>) : "none"}</KV>
       {fresh && fresh.quote ? <KV label="Fresh quote before signing">{fmtStxBoth(fresh.quote.out)} (read {fmtStamp(fresh.readAt)})</KV> : null}
     </div>
-    {phase !== "idle" ? <StatusLine kind="info"><span className="spin" style={{ marginRight: 8, verticalAlign: -1 }}></span>{phase === "requoting" ? "Reading a fresh quote from the pools." : phase === "signing" ? "Approve the sponsored transaction in the wallet; it returns signed bytes and broadcasts nothing." : "Submitting the signed transaction to the relay."}</StatusLine> : null}
+    {phase !== "idle" ? <StatusLine kind="info"><span className="spin" style={{ marginRight: 8, verticalAlign: -1 }}></span>{phase === "requoting" ? "Reading a fresh quote from the pools." : phase === "signing" ? "Approve the transaction in your wallet. The wallet signs it and hands it back without broadcasting it; the sponsor broadcasts it." : "Sending the signed transaction to the sponsor service."}</StatusLine> : null}
     <StatusLine kind="err">{err}</StatusLine>
+    <How>
+      <p>Your wallet signs a sponsored transaction with a fee of 0 and hands it back without broadcasting it. The first sponsor service that accepts it checks the three post-conditions byte for byte, adds its signature, pays the miner fee and broadcasts. Deny mode means the blockchain aborts the transaction if anything moves that the post-conditions do not cover.</p>
+      <div className="kvs">
+        <KV label="Pool contract">{pool}</KV>
+        <KV label="Latest Bitcoin block at step 2">{c.burnTip != null ? group(c.burnTip) : "-"}</KV>
+      </div>
+    </How>
   </div>
   <PanelFoot onBack={onBack}>
     <GatedBtn account={account} onConnect={onConnect} disabled={phase !== "idle" || !ranked.length} onClick={signAndSponsor}>{label}</GatedBtn>
@@ -321,14 +349,13 @@ export function Step4({ clients, txid, origin, originNonce, result, onRetry, onB
   const ledger = ledgerLines(outcome);
   const txLink = (t) => <a href={explorerTx(t)} target="_blank" rel="noopener">0x{normTxid(t)}</a>;
   return <div className="body-wrap"><div className="body">
-    <p className="step-sub">The relay broadcast the transaction; this page follows your wallet's nonce every 10 seconds until a transaction for it is mined: the one the relay sent, or a replacement with a higher miner fee (the relay re-signs after 10 minutes at the high tier, after 30 at low and mid). Once mined, the STX received minus the network fee is yours to spend. If the swap aborted, retry from the amount step with more slippage.</p>
+    <p className="step-sub">The sponsor broadcast your transaction. This page checks every 10 seconds until it is mined. Once mined, the STX you received, minus the network fee, is yours to spend. If the swap did not go through, retry from the amount step with more slippage.</p>
     <div className="kvs">
       <KV label="Transaction">{txLink(txid)}{swap.replaced ? <Badge k="pending">Replaced by fee</Badge> : null}</KV>
       {swap.replaced ? <KV label="Mined as">{txLink(swap.confirmedTwin.tx_id)}</KV> : null}
       {swap.pendingTwins.map((t) => <KV key={t.tx_id} label="Also pending">{txLink(t.tx_id)}</KV>)}
-      {result && result.relay ? <KV label="Relay used">{result.relay}</KV> : null}
-      {result && result.sponsor ? <KV label="Sponsor">{result.sponsor}</KV> : null}
-      {origin && originNonce != null ? <KV label="Wallet nonce">{origin} #{String(originNonce)}</KV> : null}
+      {result && result.relay ? <KV label="Sponsor service">{result.relay}</KV> : null}
+      {result && result.sponsor ? <KV label="Sponsor address">{result.sponsor}</KV> : null}
       <KV label="Status" mono={false}>{outcome.kind === "pending" ? <Badge k="pending">pending</Badge> : outcome.kind === "success" ? <Badge k="ok">success</Badge> : <Badge k="bad">{outcome.status}</Badge>}</KV>
       {outcome.blockHeight ? <KV label="Mined in Stacks block">{group(outcome.blockHeight)}</KV> : null}
     </div>
@@ -337,12 +364,21 @@ export function Step4({ clients, txid, origin, originNonce, result, onRetry, onB
       <Ledger title="STX" unit="STX" rows={ledger.stx.rows} total={ledger.stx.total} fmt={fmtStxNum} />
     </div> : null}
     {outcome.kind === "success" && !ledger ? <div className="kvs"><KV label="STX received">{outcome.received != null ? fmtStxBoth(outcome.received) : "unavailable (result not parsed)"}</KV></div> : null}
-    {polling ? <StatusLine kind="info"><span className="spin" style={{ marginRight: 8, verticalAlign: -1 }}></span>Checking every 10s: <span className="elapsed">{fmtElapsed(elapsed)}</span>{readErr ? <span> (last read: <span className="mono">{readErr}</span>)</span> : null} <a href="#" onClick={(e) => { e.preventDefault(); poll(); }}>Check now</a></StatusLine> : null}
-    {outcome.kind === "success" ? <StatusLine kind="ok">The swap is mined. You now hold STX for gas; the <a href={explorerAddr(tx.sender_address)} target="_blank" rel="noopener">explorer</a> shows the balance.</StatusLine> : null}
-    {fail ? <StatusLine kind="err"><div>{fail.title} {fail.action}</div>{outcome.repr ? <div>Result: <span className="mono">{outcome.repr}</span>. The sponsor paid the miner fee; you paid nothing.</div> : null}</StatusLine> : null}
+    {polling ? <StatusLine kind="info"><span className="spin" style={{ marginRight: 8, verticalAlign: -1 }}></span>Checking every 10 seconds, <span className="elapsed">{fmtElapsed(elapsed)}</span> so far. <a href="#" onClick={(e) => { e.preventDefault(); poll(); }}>Check now</a></StatusLine> : null}
+    {outcome.kind === "success" ? <StatusLine kind="ok">The swap is mined. You now hold STX for gas; the <a href={explorerAddr(tx.sender_address)} target="_blank" rel="noopener">Stacks explorer</a> shows the balance.</StatusLine> : null}
+    {fail ? <StatusLine kind="err"><div>{fail.title} {fail.action}</div>{outcome.repr ? <div>Result: <span className="mono">{outcome.repr}</span>. The sponsor paid the miner fee.</div> : null}</StatusLine> : null}
+    <How>
+      <p>This page follows the transaction nonce, your account's transaction counter, rather than one transaction id, because the transaction can be replaced. The sponsor re-signs it with a higher miner fee if it sits unmined (after 10 minutes at the high fee level, 30 at low and mid), and a transaction that reached the sponsor twice can mine under either id. Whichever transaction mines at this nonce is the result; the id the sponsor returned stays listed and reads Replaced by fee.</p>
+      <div className="kvs">
+        {origin && originNonce != null ? <KV label="Transaction nonce">{String(originNonce)}</KV> : null}
+        {origin && originNonce != null ? <KV label="Account">{origin}</KV> : null}
+        {readErr && polling ? <KV label="Last read">{readErr}</KV> : null}
+      </div>
+      {origin && originNonce != null ? <p>The transaction nonce is the nonce your account signed this transaction with: the next one after its last confirmed transaction when you signed. The sponsor's own nonce is separate.</p> : null}
+    </How>
   </div>
   <PanelFoot onBack={onBack}>
-    {fail && fail.retryable ? <><Btn kind="secondary" lg onClick={() => onRetry(500n)}>Retry With 5 Percent Slippage</Btn><Btn kind="primary" lg onClick={() => onRetry(200n)}>Retry With 2 Percent Slippage</Btn></> : null}
+    {fail && fail.retryable ? <><Btn kind="secondary" lg onClick={() => onRetry(500n)}>Retry with 5 Percent Slippage</Btn><Btn kind="primary" lg onClick={() => onRetry(200n)}>Retry with 2 Percent Slippage</Btn></> : null}
     {outcome.kind === "success" ? <Btn kind="primary" lg onClick={() => onRetry(null)}>Swap Again</Btn> : null}
   </PanelFoot></div>;
 }
@@ -350,19 +386,19 @@ export function Step4({ clients, txid, origin, originNonce, result, onRetry, onB
 // ---------- Per-step info (below the panel) ----------
 export function StepInfo({ step }) {
   const blocks = {
-    1: <div><p>This app runs on mainnet only and signs one contract call to <span className="mono">{CONTRACT_ID}</span>. Keys stay in the wallet, and every call carries deny-mode post-conditions that the relay checks byte for byte before sponsoring.</p>
-      <p><ExtLink href={`${DOCS}/sdk.md`}>SDK and wallet requirements</ExtLink> <ExtLink href={`${DOCS}/relay.md`}>Relay verification and error codes</ExtLink></p></div>,
-    2: <div><p>The default provider fee is 50 bips of the swap amount and the integrator fee is 100 bips, each floored to whole sats: 50 bips of anything under 200 sats and 100 bips of anything under 100 sats round to 0, so the smallest swaps carry no fee. The integrator fee goes to this app's principal, <span className="mono">{INTEGRATOR}</span>, in the same transaction. The quote picks the whitelisted pool with the highest STX output for the net input; the DLMM pool is skipped when the best other output is at most 100 STX. Reads go to the node in <span className="mono">?api=</span> (reads only; the wallet signs for mainnet regardless).</p>
-      <p><ExtLink href={`${DOCS}/contract.md`}>Contract: fees, tiers, pools, error codes</ExtLink> <ExtLink href={`${DOCS}/sdk.md`}>SDK: quote and defaults</ExtLink></p></div>,
-    3: <div><p>The origin signature does not bind the sponsor or the miner fee: any relay holding the signed bytes can sponsor them, and the contract pays the network fee to whichever sponsor lands the transaction, never more than the tier you chose. A relay may refuse any transaction for any reason; it re-quotes before sponsoring because an on-chain abort costs the sponsor the miner fee.</p>
-      <p><ExtLink href={`${DOCS}/relay.md`}>Relay API and error codes</ExtLink> <ExtLink href={`${DOCS}/contract.md#post-conditions`}>Post-conditions the relay requires</ExtLink> <ExtLink href="./disclaimer.html">Disclaimer</ExtLink></p></div>,
-    4: <div><p>A swap that aborts on chain moved nothing: post-conditions and the contract's own checks revert every transfer, and the sponsor, not you, paid the miner fee. The most common abort is the pool paying less than min-out after the price moved; 2 or 5 percent slippage usually clears it.</p>
+    1: <div><p>This app runs on mainnet only and asks your wallet to sign one contract call to <span className="mono">{CONTRACT_ID}</span>. Your keys stay in the wallet.</p>
+      <p><ExtLink href={`${DOCS}/sdk.md`}>SDK and wallet requirements</ExtLink> <ExtLink href={`${DOCS}/relay.md`}>Sponsor service checks and error codes</ExtLink></p></div>,
+    2: <div><p>Three fees come out of the swap, all shown above before you sign: the network fee in STX to the sponsor, 0.5 percent of the sBTC to the default provider, and 1 percent to stx.fan, which publishes this page. Fees under one sat round to zero.</p>
+      <p><ExtLink href={`${DOCS}/contract.md`}>Contract: fees, pools, error codes</ExtLink> <ExtLink href={`${DOCS}/sdk.md`}>SDK: quote and defaults</ExtLink></p></div>,
+    3: <div><p>Any sponsor service holding your signed transaction may pay for it; the contract repays whichever one gets it mined, never more than the fee level you chose. A sponsor may refuse for any reason, and a refusal costs you nothing.</p>
+      <p><ExtLink href={`${DOCS}/relay.md`}>Sponsor service API and error codes</ExtLink> <ExtLink href={`${DOCS}/contract.md#post-conditions`}>Post-conditions the sponsor requires</ExtLink> <ExtLink href="./disclaimer.html">Disclaimer</ExtLink></p></div>,
+    4: <div><p>A swap that does not go through moves nothing: your post-conditions and the contract's own checks undo each transfer, and the sponsor paid the miner fee. The common cause is the price moving below your minimum between the quote and the block; 2 or 5 percent slippage clears it in most cases.</p>
       <p><ExtLink href={`${DOCS}/contract.md#error-codes`}>Error codes</ExtLink> <ExtLink href="https://explorer.hiro.so/?chain=mainnet">Stacks explorer</ExtLink></p></div>,
   };
   return <>
     <div className="info-sec"><h4>About this step</h4>{blocks[step]}</div>
     {step === 4 ? <div className="info-sec next-steps"><h4>Next steps</h4>
-      <p>Once the swap is mined you hold STX for gas. Spend it on any Stacks transaction from the same wallet; to bring more BTC over as sBTC use the <ExtLink href={SBTC_BRIDGE}>sBTC bridge</ExtLink>, and to integrate this swap into a wallet or dapp read the <ExtLink href={`${DOCS}/sdk.md`}>SDK docs</ExtLink>.</p>
+      <p>You now hold STX for gas and can send any Stacks transaction from this wallet. To bring more BTC over as sBTC, use the <ExtLink href={SBTC_BRIDGE}>sBTC bridge</ExtLink>. To put this swap in your own wallet or app, read the <ExtLink href={`${DOCS}/sdk.md`}>SDK docs</ExtLink>.</p>
     </div> : null}
   </>;
 }
