@@ -4,7 +4,11 @@ import assert from "node:assert/strict";
 import {
   parseAmount, fmtSats, fmtBtc, fmtStx, fmtUstx, fmtBoth, pctToBips, bipsToPct, parseSlippagePct,
   parseReceived, parseSwapResult, parseSwapInput, ledgerLines, txOutcome, shortTxid, shortPrincipal, fmtBips, fmtStamp,
+  originNonceFromHex, swapTxs,
 } from "../src/amounts.js";
+import { createRequire } from "node:module";
+// @stacks/transactions is the SDK's dependency; the app only vendors a browser bundle of it.
+const { makeContractCall, PostConditionMode, Cl, deserializeTransaction } = createRequire(new URL("../../sdk/package.json", import.meta.url))("@stacks/transactions");
 
 test("parseAmount: sats accept digits with grouping, reject fractions and zero", () => {
   assert.deepEqual(parseAmount("5000", "sats"), { sats: 5000n });
@@ -129,4 +133,54 @@ test("ledgerLines is null when the result or the input did not parse", () => {
   assert.equal(ledgerLines(txOutcome({ tx_status: "pending" })), null);
   // result present but no call args (an unusual API answer): no ledger rather than a wrong one
   assert.equal(ledgerLines(txOutcome({ tx_status: "success", block_height: 1, tx_result: { repr: MINED } })), null);
+});
+
+test("originNonceFromHex: reads the origin nonce of a real sponsored call, with or without 0x", async () => {
+  for (const nonce of [0n, 5n, 4_294_967_297n]) {
+    const tx = await makeContractCall({
+      contractAddress: "SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4", contractName: "sbtc-gas-swap-v1", functionName: "swap-sbtc-for-gas",
+      functionArgs: [Cl.uint(1000), Cl.uint(10000), Cl.uint(10000), Cl.uint(1), Cl.none(), Cl.uint(0)],
+      postConditionMode: PostConditionMode.Deny, postConditions: [], sponsored: true, fee: 0n, nonce, network: "mainnet",
+      senderKey: "7287ba251d44a4d3fd9276c88ce34c5c52a038955b4cf3de1a4f2b9f3d8b5b9101",
+    });
+    const hex = tx.serialize();
+    assert.equal(originNonceFromHex(hex), nonce);
+    assert.equal(originNonceFromHex("0x" + hex), nonce);
+    assert.equal(BigInt(deserializeTransaction(hex).auth.spendingCondition.nonce), nonce);
+  }
+  assert.equal(originNonceFromHex("abcd"), null);
+  assert.equal(originNonceFromHex(null), null);
+});
+
+test("swapTxs: the original txid, when mined, is the result", () => {
+  const me = "SP16YF6XPB6RNBVJ6KJF28162XQMPJVAWWJYZD279";
+  const t = { tx_id: "0x" + "aa".repeat(32), sender_address: me, nonce: 1, tx_status: "success", block_height: 10 };
+  const r = swapTxs("aa".repeat(32), me, 1n, { direct: t });
+  assert.equal(r.current, t); assert.equal(r.replaced, false); assert.equal(r.confirmedTwin, null); assert.deepEqual(r.pendingTwins, []);
+});
+test("swapTxs: a confirmed transaction at the same origin and nonce under another txid is the result; the original is kept and marked replaced", () => {
+  const me = "SP16YF6XPB6RNBVJ6KJF28162XQMPJVAWWJYZD279";
+  const twin = { tx_id: "0x" + "bb".repeat(32), sender_address: me, nonce: 1, tx_status: "success", block_height: 10 };
+  const r = swapTxs("aa".repeat(32), me, 1n, { direct: null, addressTxs: [twin] });
+  assert.equal(r.original, null); assert.equal(r.current, twin); assert.equal(r.replaced, true); assert.equal(r.confirmedTwin, twin);
+  // the direct read may still be pending while the twin mined: the twin wins
+  const pend = { tx_id: "0x" + "aa".repeat(32), sender_address: me, nonce: 1, tx_status: "pending" };
+  const r2 = swapTxs("aa".repeat(32), me, 1n, { direct: pend, addressTxs: [twin] });
+  assert.equal(r2.current, twin); assert.equal(r2.replaced, true); assert.equal(r2.original, pend);
+});
+test("swapTxs: another sender, another nonce, or an unknown origin never counts", () => {
+  const me = "SP16YF6XPB6RNBVJ6KJF28162XQMPJVAWWJYZD279";
+  const other = { tx_id: "0x" + "bb".repeat(32), sender_address: "SP3FBR2AGK5H9QBDH3EEN6DF8EK8JY7RX8QJ5SVTE", nonce: 1, tx_status: "success", block_height: 10 };
+  const otherNonce = { tx_id: "0x" + "cc".repeat(32), sender_address: me, nonce: 2, tx_status: "success", block_height: 10 };
+  const r = swapTxs("aa".repeat(32), me, 1n, { addressTxs: [other, otherNonce] });
+  assert.equal(r.current, null); assert.equal(r.replaced, false); assert.deepEqual(r.pendingTwins, []);
+  const mine = { tx_id: "0x" + "bb".repeat(32), sender_address: me, nonce: 1, tx_status: "success", block_height: 10 };
+  assert.equal(swapTxs("aa".repeat(32), null, null, { addressTxs: [mine] }).current, null);
+});
+test("swapTxs: twins still in the mempool are listed as pending; the status stays pending", () => {
+  const me = "SP16YF6XPB6RNBVJ6KJF28162XQMPJVAWWJYZD279";
+  const orig = { tx_id: "0x" + "aa".repeat(32), sender_address: me, nonce: 1, tx_status: "pending" };
+  const twin = { tx_id: "0x" + "bb".repeat(32), sender_address: me, nonce: 1, tx_status: "pending" };
+  const r = swapTxs("aa".repeat(32), me, 1n, { direct: orig, mempoolTxs: [orig, twin] });
+  assert.equal(r.current, orig); assert.deepEqual(r.pendingTwins, [twin]); assert.equal(txOutcome(r.current).kind, "pending");
 });

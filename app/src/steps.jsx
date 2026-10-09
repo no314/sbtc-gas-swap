@@ -8,7 +8,7 @@ import {
 } from "./core.jsx";
 import {
   parseAmount, fmtSats, fmtBtc, fmtBoth, fmtStx, fmtStxBoth, fmtUstx, fmtSatsNum, fmtStxNum, fmtBips, bipsToPct, parseSlippagePct, fmtStamp, ledgerLines,
-  txOutcome, shortTxid, shortPrincipal, explorerTx, explorerAddr, normTxid,
+  txOutcome, shortTxid, shortPrincipal, explorerTx, explorerAddr, normTxid, originNonceFromHex, swapTxs,
 } from "./amounts.js";
 import { quoteFromSnapshot, freshQuoteFor, rankRelays, poolName, poolPrincipal } from "./chain.js";
 
@@ -248,7 +248,7 @@ export function Step3({ clients, account, onConnect, committed, relays, onSponso
       setPhase("idle"); return;
     }
     setPhase("idle");
-    onSponsored({ txid: normTxid(sub.txid), relay: sub.relay, sponsor: sub.sponsor, fee: sub.fee });
+    onSponsored({ txid: normTxid(sub.txid), relay: sub.relay, sponsor: sub.sponsor, fee: sub.fee, origin: account, originNonce: originNonceFromHex(hex) });
   }
 
   const label = phase === "requoting" ? "Re-quoting" : phase === "signing" ? "Waiting For The Wallet" : phase === "sponsoring" ? "Sponsoring" : "Sign And Sponsor";
@@ -289,34 +289,46 @@ function Ledger({ title, unit, rows, total, fmt }) {
   </div>;
 }
 
-export function Step4({ clients, txid, result, onRetry, onBack }) {
-  const [tx, setTx] = useState(null);
+export function Step4({ clients, txid, origin, originNonce, result, onRetry, onBack }) {
+  const [reads, setReads] = useState({ direct: null, addressTxs: [], mempoolTxs: [] });
   const [readErr, setReadErr] = useState(null);
+  const swap = swapTxs(txid, origin, originNonce, reads);
+  const tx = swap.current;
   const outcome = txOutcome(tx);
   const polling = outcome.kind === "pending";
   const elapsed = useElapsed(polling);
 
+  // Three reads per tick, independent: the txid the relay returned (fastest on a normal day),
+  // then the wallet's confirmed and pending transactions, filtered to this nonce. A 404 on the
+  // txid is expected until the node indexes it, and permanent when a twin won; the other two
+  // reads are what resolve that case.
   async function poll() {
-    try {
-      const j = await clients.chain.json(`/extended/v1/tx/0x${normTxid(txid)}`);
-      setReadErr(null);
-      if (j && j.tx_status) setTx(j);
-    } catch (e) {
-      // 404 while the node has not indexed the transaction yet is expected; keep polling.
-      setReadErr((e && e.message) || String(e));
-    }
+    const direct = clients.chain.json(`/extended/v1/tx/0x${normTxid(txid)}`);
+    const addr = origin && originNonce != null ? clients.chain.json(`/extended/v1/address/${origin}/transactions?limit=20`) : Promise.resolve(null);
+    const mem = origin && originNonce != null ? clients.chain.json(`/extended/v1/tx/mempool?sender_address=${origin}&limit=20`) : Promise.resolve(null);
+    const [d, a, m] = await Promise.allSettled([direct, addr, mem]);
+    const next = { ...reads };
+    if (d.status === "fulfilled" && d.value && d.value.tx_status) { next.direct = d.value; setReadErr(null); }
+    else if (d.status === "rejected") setReadErr((d.reason && d.reason.message) || String(d.reason));
+    if (a.status === "fulfilled" && a.value && Array.isArray(a.value.results)) next.addressTxs = a.value.results;
+    if (m.status === "fulfilled" && m.value && Array.isArray(m.value.results)) next.mempoolTxs = m.value.results;
+    setReads(next);
   }
   useEffect(() => { poll(); }, [txid]);
   useInterval(poll, 10000, polling);
 
   const fail = outcome.kind === "abort" ? explainTxFailure(outcome.status, outcome.repr) : null;
   const ledger = ledgerLines(outcome);
+  const txLink = (t) => <a href={explorerTx(t)} target="_blank" rel="noopener">0x{normTxid(t)}</a>;
   return <div className="body-wrap"><div className="body">
-    <p className="step-sub">The relay broadcast the transaction; this page checks it every 10 seconds until it is mined, and the relay re-signs it with a higher miner fee if it sits unmined: after 10 minutes at the high tier, after 30 at low and mid. Once mined, the STX received minus the network fee is yours to spend. If the swap aborted, retry from the amount step with more slippage.</p>
+    <p className="step-sub">The relay broadcast the transaction; this page follows your wallet's nonce every 10 seconds until a transaction for it is mined: the one the relay sent, or a replacement with a higher miner fee (the relay re-signs after 10 minutes at the high tier, after 30 at low and mid). Once mined, the STX received minus the network fee is yours to spend. If the swap aborted, retry from the amount step with more slippage.</p>
     <div className="kvs">
-      <KV label="Transaction"><a href={explorerTx(txid)} target="_blank" rel="noopener">0x{normTxid(txid)}</a></KV>
-      {result ? <KV label="Relay used">{result.relay}</KV> : null}
-      {result ? <KV label="Sponsor">{result.sponsor}</KV> : null}
+      <KV label="Transaction">{txLink(txid)}{swap.replaced ? <Badge k="pending">Replaced by fee</Badge> : null}</KV>
+      {swap.replaced ? <KV label="Mined as">{txLink(swap.confirmedTwin.tx_id)}</KV> : null}
+      {swap.pendingTwins.map((t) => <KV key={t.tx_id} label="Also pending">{txLink(t.tx_id)}</KV>)}
+      {result && result.relay ? <KV label="Relay used">{result.relay}</KV> : null}
+      {result && result.sponsor ? <KV label="Sponsor">{result.sponsor}</KV> : null}
+      {origin && originNonce != null ? <KV label="Wallet nonce">{origin} #{String(originNonce)}</KV> : null}
       <KV label="Status" mono={false}>{outcome.kind === "pending" ? <Badge k="pending">pending</Badge> : outcome.kind === "success" ? <Badge k="ok">success</Badge> : <Badge k="bad">{outcome.status}</Badge>}</KV>
       {outcome.blockHeight ? <KV label="Mined in Stacks block">{group(outcome.blockHeight)}</KV> : null}
     </div>

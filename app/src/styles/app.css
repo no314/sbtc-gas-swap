@@ -226,3 +226,4 @@ textarea.in.code{min-height:220px;white-space:pre;font-size:12px}
 .ledger-row .n{text-align:right;font-size:13px;font-variant-numeric:tabular-nums}
 .ledger-row.total{border-top:1px solid var(--border-secondary);margin-top:2px;padding-top:9px;font-weight:500;color:var(--text-primary)}
 .ledger-row.total .n{font-weight:500}
+.kv .v .badge{margin-left:8px;vertical-align:1px}

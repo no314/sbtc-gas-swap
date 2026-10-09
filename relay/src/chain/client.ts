@@ -3,7 +3,7 @@ import { ChainClient, quoteXyk, quoteVelar, quoteDlmm } from "@no314/sbtc-gas-sw
 import type { RelayChain } from "../core/relay.js";
 
 export function makeRelayChain(o: { baseUrl?: string; apiKey?: string; fetch?: typeof fetch }): RelayChain & { client: ChainClient } {
-  const client = new ChainClient({ baseUrl: o.baseUrl, apiKey: o.apiKey, fetch: o.fetch, minSpacingMs: 0, retries: 1 });
+  const client = new ChainClient({ baseUrl: o.baseUrl, apiKey: o.apiKey, fetch: o.fetch, minSpacingMs: 0, retries: 2 }); // 429/5xx backoff 1 s then 2 s: under the SDK's 8 s relay timeout
   return {
     client,
     getSbtcBalance: (a) => client.getSbtcBalance(a),

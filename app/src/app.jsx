@@ -17,12 +17,17 @@ function apiFromUrl() {
   if (!/^https?:\/\/[^\s]+$/.test(v)) return null;
   return v === API_DEFAULT ? null : v;
 }
-// The URL is the whole state: chain, then the txid once a relay broadcast one, then the read
-// API at its current value (default or overridden, always visible), then the fixture flag.
-function writeUrl(txid, api, fixture) {
+// The URL is the whole state: chain, then the txid once a relay broadcast one with the wallet's
+// address and nonce (what the Done page follows, so a reload resolves a replaced transaction
+// too), then the read API at its current value (default or overridden, always visible), then
+// the fixture flag.
+function writeUrl(result, api, fixture) {
   const p = new URLSearchParams();
   p.set("chain", "mainnet");
-  if (txid) p.set("txid", txid);
+  if (result && result.txid) {
+    p.set("txid", result.txid);
+    if (result.origin && result.originNonce != null) { p.set("origin", result.origin); p.set("nonce", String(result.originNonce)); }
+  }
   p.set("api", api || API_DEFAULT);
   if (fixture) p.set("fixture", fixture);
   history.replaceState(null, "", location.pathname + "?" + p.toString());
@@ -56,6 +61,8 @@ export function App() {
   const api = useMemo(() => apiFromUrl(), []);
   const clients = useMemo(() => makeClients(api, fixture), [api, fixture]);
   const urlTxid = useMemo(() => { const t = normTxid(url.get("txid")); return /^[0-9a-f]{64}$/.test(t) ? t : null; }, [url]);
+  const urlOrigin = useMemo(() => { const o = String(url.get("origin") || "").toUpperCase(); return /^S[PM][0-9A-Z]{28,41}$/.test(o) ? o : null; }, [url]);
+  const urlNonce = useMemo(() => { const n = url.get("nonce"); return n != null && /^\d{1,20}$/.test(n) ? BigInt(n) : null; }, [url]);
 
   const [account, setAccount] = useState(null);
   const [walletName, setWalletName] = useState(null);
@@ -69,7 +76,7 @@ export function App() {
   const [viewStep, setViewStep] = useState(urlTxid ? 4 : 1);
   const [swap, setSwap] = useState(() => ({ ...FRESH_SWAP, ...(fixture ? { amountText: FIXTURES[fixture].inputs.amount, unit: FIXTURES[fixture].inputs.unit } : {}) }));
   const [committed, setCommitted] = useState(null);
-  const [result, setResult] = useState(urlTxid ? { txid: urlTxid, relay: null, sponsor: null, fee: null, tier: null } : null);
+  const [result, setResult] = useState(urlTxid ? { txid: urlTxid, relay: null, sponsor: null, fee: null, tier: null, origin: urlOrigin, originNonce: urlOrigin ? urlNonce : null } : null);
 
   const [verification, setVerification] = useState(null);
   const [relays, setRelays] = useState(null);
@@ -78,7 +85,7 @@ export function App() {
   const [refreshing, setRefreshing] = useState(false);
   const accountRef = useRef(account); accountRef.current = account;
 
-  useEffect(() => { writeUrl(result ? result.txid : null, api, fixture); }, [result && result.txid]);
+  useEffect(() => { writeUrl(result, api, fixture); }, [result && result.txid]);
   useEffect(() => { const close = () => setMenuOpen(false); document.addEventListener("click", close); return () => document.removeEventListener("click", close); }, []);
   // Installed wallets can appear after load (extension injection is asynchronous); re-detect
   // cheaply while the connect step is showing.
@@ -166,7 +173,7 @@ export function App() {
     3: committed ? <Step3 clients={clients} account={account} onConnect={doConnect} committed={committed} relays={relays} onSponsored={onSponsored} onBack={back}
       readOnly={readOnlySteps.includes(3)} result={result} />
       : <div className="body-wrap"><div className="body"><p className="step-sub">{result ? "This page was opened from a transaction id; the signing details are not kept after a reload." : "Enter a swap amount first."}</p></div><div className="foot"><Btn kind="tertiary" onClick={back}><i className="ph ph-arrow-left"></i>Back</Btn><span className="spacer"></span></div></div>,
-    4: <Step4 clients={clients} txid={result ? result.txid : null} result={result} onRetry={onRetry} onBack={back} />,
+    4: <Step4 clients={clients} txid={result ? result.txid : null} origin={result ? result.origin : null} originNonce={result ? result.originNonce : null} result={result} onRetry={onRetry} onBack={back} />,
   }[viewStep];
 
   return <div>

@@ -11,11 +11,28 @@ export interface FeeInputs {
   minPerByte: bigint;                     // network admission floor per byte
 }
 
-// min(max(opening bid, admission floor), tier)
+// The network's admission floor for this transaction (stacks-node: fee >= length * MINIMUM_TX_FEE_RATE_PER_BYTE).
+export function admissionFloor(byteLength: number, minPerByte: bigint): bigint {
+  return BigInt(byteLength) * minPerByte;
+}
+
+// Whether the tier can carry an admissible fee at all. A tier below the floor cannot be sponsored
+// at any bid: the node would refuse the transaction, or the sponsor would pay more than the tier repays.
+// Unreachable with the current contract call (about 680 bytes against a 10000 uSTX low tier); a guard.
+export function tierCoversFloor(tierName: TierName, byteLength: number, minPerByte: bigint): boolean {
+  return admissionFloor(byteLength, minPerByte) <= TIERS[tierName];
+}
+
+// Lowest tier that covers the admission floor, or null when none does.
+export function lowestAdmissibleTier(byteLength: number, minPerByte: bigint): TierName | null {
+  return TIER_NAMES.find((t) => tierCoversFloor(t, byteLength, minPerByte)) ?? null;
+}
+
+// min(max(opening bid, admission floor), tier). Callers check tierCoversFloor first.
 export function computeFee(i: FeeInputs): bigint {
   const tier = TIERS[i.tierName];
   let fee = i.openingBid[i.tierName];
-  const perByte = BigInt(i.byteLength) * i.minPerByte;
+  const perByte = admissionFloor(i.byteLength, i.minPerByte);
   if (fee < perByte) fee = perByte;
   if (fee > tier) fee = tier;
   return fee;

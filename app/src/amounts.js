@@ -141,3 +141,33 @@ export function shortPrincipal(p) {
 }
 export const explorerTx = (t) => `https://explorer.hiro.so/txid/0x${normTxid(t)}?chain=mainnet`;
 export const explorerAddr = (a) => `https://explorer.hiro.so/address/${a}?chain=mainnet`;
+
+// The origin nonce of a signed transaction, read straight from the wire bytes: version (1),
+// chain id (4), auth type (1), then the origin spending condition: hash mode (1), signer (20),
+// nonce (8). Single-sig and multisig conditions share this prefix. null when the hex is too short.
+export function originNonceFromHex(hex) {
+  const h = String(hex ?? "").replace(/^0x/i, "").toLowerCase();
+  if (!/^[0-9a-f]{70,}$/.test(h)) return null;
+  return BigInt("0x" + h.slice(54, 70));
+}
+
+// What the chain holds for one swap, identified by the wallet's (origin, nonce) rather than by
+// one txid. A relay bump, or a second submission that reached a miner first, mines under another
+// txid; the page must still resolve. `direct` is the read of the txid the relay returned,
+// `addressTxs` the origin's confirmed transactions, `mempoolTxs` its pending ones. Only
+// transactions sent by the origin at this nonce count; a transaction from another wallet that
+// shares a sponsor nonce is the sponsor's business. The original row is never dropped.
+export function swapTxs(txid, origin, nonce, { direct = null, addressTxs = [], mempoolTxs = [] } = {}) {
+  const id = normTxid(txid);
+  const mine = (t) => !!t && !!origin && t.sender_address === origin && nonce != null && String(t.nonce) === String(nonce);
+  const byId = new Map();
+  for (const t of [direct, ...addressTxs, ...mempoolTxs]) if (t && t.tx_id) byId.set(normTxid(t.tx_id), t);
+  const original = byId.get(id) || null;
+  const mined = (t) => !!t && !!t.tx_status && t.tx_status !== "pending" && t.block_height != null;
+  const twins = [...byId.values()].filter((t) => normTxid(t.tx_id) !== id && mine(t));
+  const confirmedTwin = twins.find(mined) || null;
+  const pendingTwins = twins.filter((t) => !mined(t));
+  const originalMined = mined(original);
+  const current = originalMined ? original : confirmedTwin || original;
+  return { original, current, replaced: !originalMined && !!confirmedTwin, confirmedTwin, pendingTwins };
+}

@@ -3,8 +3,8 @@
 import { sponsorTransaction, type StacksTransactionWire } from "@stacks/transactions";
 import { POLICY, RelayError, TIERS, TIER_NAMES, type TierName } from "./config.js";
 import { verifySponsoredSwap, type VerifiedSwap } from "./verify.js";
-import { acceptedTiers, bumpFee, computeFee } from "./fee.js";
-import { reconcileNonce, type ChainNonces } from "./nonce.js";
+import { acceptedTiers, admissionFloor, bumpFee, computeFee, lowestAdmissibleTier, tierCoversFloor } from "./fee.js";
+import type { ChainNonces } from "./nonce.js";
 import type { PendingRecord, RelayStore } from "./store.js";
 export type { PendingRecord } from "./store.js";
 
@@ -41,6 +41,26 @@ export async function handleSponsor(txHex: string, d: RelayDeps): Promise<Sponso
   if (!(await d.store.rateLimit(`origin:${v.origin}`, d.policy.perOriginPerHour, now))) throw new RelayError("RATE_LIMITED", `more than ${d.policy.perOriginPerHour} requests per hour from ${v.origin}`, 429);
   if (!(await d.store.rateLimit("global", d.policy.globalPerHour, now))) throw new RelayError("RATE_LIMITED", "relay hourly capacity reached", 429);
 
+  // one sponsored transaction per origin nonce. The chain's view of the origin lags a broadcast by
+  // seconds, so a second submission in that window (double click, retry after a timeout) would pass
+  // the nonce check below and end up as a twin at the same sponsor nonce. The reservation is the
+  // relay's own memory of what it has in flight; it is released on any failure and when the sweep
+  // sees the origin nonce executed.
+  if (!(await d.store.reserveOriginNonce(v.origin, v.originNonce, now))) {
+    const r = await d.store.getOriginReservation(v.origin, v.originNonce, now);
+    throw new RelayError("ORIGIN_NONCE_IN_FLIGHT", r?.txid
+      ? `nonce ${v.originNonce} of ${v.origin} is already sponsored and pending as ${r.txid}`
+      : `nonce ${v.originNonce} of ${v.origin} is being sponsored by another request right now`, 409);
+  }
+  try {
+    return await sponsorReserved(v, txHex, key, d, now);
+  } catch (e) {
+    await d.store.releaseOriginNonce(v.origin, v.originNonce);
+    throw e;
+  }
+}
+
+async function sponsorReserved(v: VerifiedSwap, txHex: string, key: SponsorKey, d: RelayDeps, now: number): Promise<SponsorResult> {
   // preflight: everything that would make the sponsor pay for an abort
   const balance = await d.chain.getSbtcBalance(v.origin);
   if (balance < v.amount) throw new RelayError("INSUFFICIENT_SBTC", `${v.origin} holds ${balance} sats, swap needs ${v.amount}`);
@@ -49,30 +69,32 @@ export async function handleSponsor(txHex: string, d: RelayDeps): Promise<Sponso
   const quote = await d.chain.quotePool(v.poolId, v.net);
   if (quote.out < v.minOut) throw new RelayError("QUOTE_BELOW_MIN_OUT", `pool ${v.poolId} now quotes ${quote.out} uSTX, below min-out ${v.minOut}`, 409);
 
-  const fee = computeFee({ tierName: v.tierName, openingBid: d.policy.openingBid, byteLength: v.byteLength + SPONSOR_SIG_BYTES, minPerByte: d.policy.minFeePerByte });
+  const byteLength = v.byteLength + SPONSOR_SIG_BYTES;
+  if (!tierCoversFloor(v.tierName, byteLength, d.policy.minFeePerByte)) {
+    const next = lowestAdmissibleTier(byteLength, d.policy.minFeePerByte);
+    throw new RelayError("TIER_TOO_SMALL", `a ${byteLength}-byte transaction needs at least ${admissionFloor(byteLength, d.policy.minFeePerByte)} uSTX to be admitted; the ${v.tierName} tier (${TIERS[v.tierName]}) cannot cover it${next ? `, choose ${next}` : ""}`);
+  }
+  const fee = computeFee({ tierName: v.tierName, openingBid: d.policy.openingBid, byteLength, minPerByte: d.policy.minFeePerByte });
 
-  // reserve a sponsor nonce, sign, broadcast; one reconcile-and-retry on a nonce conflict
+  // take a sponsor nonce (atomic in the store), sign, broadcast; one reconcile-and-retry on a nonce conflict
   let attempt = 0;
   while (true) {
-    const local = await d.store.getNonceState(key.address);
     const chainNonces = await d.chain.getNonces(key.address);
-    const rec = reconcileNonce(local, chainNonces, d.policy.maxPendingPerKey);
+    const rec = await d.store.allocateNonce(key.address, chainNonces, d.policy.maxPendingPerKey);
     if (rec.nonce === null) throw new RelayError("SPONSOR_BUSY", `sponsor ${key.address} has ${rec.pending.length} pending transactions`, 503);
     const signed = await sponsorTransaction({ transaction: v.tx, sponsorPrivateKey: key.privateKey, fee, sponsorNonce: rec.nonce, network: "mainnet" });
     const hex = signed.serialize();
     const res = await d.chain.broadcast(hex);
     if ("txid" in res && res.txid) {
-      await d.store.setNonceState(key.address, { next: rec.nonce + 1n, pending: [...rec.pending, rec.nonce] });
-      await d.store.addPending({ txid: res.txid, tier: v.tierName, sponsor: key.address, sponsorNonce: rec.nonce, fee, originalTx: txHex, broadcastAt: now, bumps: 0, origin: v.origin });
+      await d.store.addPending({ txid: res.txid, tier: v.tierName, sponsor: key.address, sponsorNonce: rec.nonce, fee, originalTx: txHex, broadcastAt: now, bumps: 0, origin: v.origin, originNonce: v.originNonce });
+      await d.store.confirmOriginNonce(v.origin, v.originNonce, res.txid);
       return { txid: res.txid, sponsoredTx: hex, fee: fee.toString(), tier: v.tierName, sponsor: key.address };
     }
     const reason = (res as any).reason as string;
-    if ((reason === "BadNonce" || reason === "ConflictingNonceInMempool") && attempt === 0) {
-      attempt++;
-      // forget the local counter; the chain view wins on the retry
-      await d.store.setNonceState(key.address, { next: null, pending: rec.pending });
-      continue;
-    }
+    const nonceConflict = reason === "BadNonce" || reason === "ConflictingNonceInMempool";
+    // give the nonce back; after a nonce conflict also forget the local counter so the chain view wins
+    await d.store.releaseNonce(key.address, rec.nonce, nonceConflict);
+    if (nonceConflict && attempt === 0) { attempt++; continue; }
     throw new RelayError("BROADCAST_FAILED", `node rejected the transaction: ${reason} ${JSON.stringify((res as any).reason_data ?? "")}`, 502);
   }
 }
@@ -135,8 +157,9 @@ export async function executeRbf(d: RelayDeps): Promise<{ bumped: number; done: 
   const plan = planRbf(pending, nonces, d.now(), d.policy);
   for (const r of plan.done) {
     await d.store.removePending(r.txid);
-    const st = await d.store.getNonceState(r.sponsor);
-    await d.store.setNonceState(r.sponsor, { ...st, pending: st.pending.filter((n) => n !== r.sponsorNonce) });
+    const n = nonces[r.sponsor];
+    await d.store.settleNonces(r.sponsor, n?.lastExecuted ?? -1);
+    if (r.origin && r.originNonce !== undefined) await d.store.releaseOriginNonce(r.origin, r.originNonce);
   }
   let bumped = 0;
   for (const { record, newFee } of plan.bump) {

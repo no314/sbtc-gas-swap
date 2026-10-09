@@ -50,14 +50,17 @@ Errors: `{"code", "message"}` with these codes.
 | `BAD_BIPS` | 400 | Integrator bips above `100` |
 | `BAD_POST_CONDITIONS` | 400 | Mode is not deny, or the set differs from the exact three ([contract.md](contract.md#post-conditions)) |
 | `TIER_BELOW_MIN` | 409 | Tier below the operator's `minTier` |
+| `TIER_TOO_SMALL` | 400 | The tier cannot carry the network's admission floor (`length × 1 uSTX`); the message names the lowest tier that can. Unreachable with this contract call, a guard |
+| `ORIGIN_NONCE_IN_FLIGHT` | 409 | The relay already has a transaction in flight for this origin nonce; the message names its txid when it was broadcast |
 | `INSUFFICIENT_SBTC` | 400 | Origin holds less sBTC than `amount` |
 | `BAD_NONCE` | 409 | Origin nonce differs from the chain's `possible_next_nonce` |
 | `QUOTE_BELOW_MIN_OUT` | 409 | The relay's own re-quote of the selected pool is below `min-out` |
 | `RATE_LIMITED` | 429 | Per-origin or global hourly cap reached |
 | `SPONSOR_BUSY` | 503 | The tier's key has `maxPendingPerKey` transactions pending |
+| `UPSTREAM_RATE_LIMITED` | 503 | The chain API rate-limited the relay's own reads (HTTP 429); nothing was signed |
 | `BROADCAST_FAILED` | 502 | The node rejected the sponsored transaction; the message carries the node's reason |
 
-A verdict about the transaction itself (`MALFORMED` through `BAD_POST_CONDITIONS`, `BAD_SIGNATURE`, `INSUFFICIENT_SBTC`) is final: the SDK stops trying other relays. The rest are relay or timing conditions and the SDK moves to the next relay.
+A verdict about the transaction itself (`MALFORMED` through `BAD_POST_CONDITIONS`, `BAD_SIGNATURE`, `INSUFFICIENT_SBTC`, `TIER_TOO_SMALL`) is final: the SDK stops trying other relays. So is `ORIGIN_NONCE_IN_FLIGHT`: the swap is already on its way and another relay would only make a twin. The rest are relay or timing conditions and the SDK moves to the next relay.
 
 ## Verification (pure, no network)
 
@@ -93,7 +96,13 @@ What the brackets buy is fairness, not speed. Stacks blocks arrive every few sec
 
 ## Keys and nonces
 
-Three keys, one per tier, so a low-tier queue cannot block mid or high. Per key the relay keeps `next` and `pending` nonces, reconciles them against Hiro's `/extended/v1/address/{addr}/nonces` on every request (a reported missing nonce is filled first, the chain view wins when it is ahead), caps pending at `maxPendingPerKey` (default `20`; the network's chaining limit is `25`, per `MAXIMUM_MEMPOOL_TX_CHAINING`), and on a `BadNonce` or `ConflictingNonceInMempool` rejection forgets the local counter and retries once with the chain's view. Adding more keys per tier is a v2 change: `keys` becomes `Record<TierName, SponsorKey[]>` and the reconcile picks the key with the fewest pending.
+Three keys, one per tier, so a low-tier queue cannot block mid or high. Per key the relay keeps `next` and `pending` nonces, reconciles them against Hiro's `/extended/v1/address/{addr}/nonces` on every request (a reported missing nonce is filled first, the chain view wins when it is ahead), caps pending at `maxPendingPerKey` (default `20`; the network's chaining limit is `25`, per `MAXIMUM_MEMPOOL_TX_CHAINING`), and on a `BadNonce` or `ConflictingNonceInMempool` rejection gives the nonce back, forgets the local counter and retries once with the chain's view.
+
+Allocation is one atomic step in the store (`allocateNonce`: reconcile, take, record as pending, advance), and the store has one writer per key. This is what prevents twins. The chain's view of both the sponsor and the origin lags a broadcast by seconds, so two submissions in that window (a double click, a retry after the app's timeout) would both pass the nonce checks and both sign the same sponsor nonce; one of them would then vanish once the other mined, which is what happened on 2026-09-30 at sponsor nonce 5 of the low key. An eventually consistent store cannot carry this counter: Cloudflare KV may serve a read up to 60 seconds stale, which is exactly how the two twins were signed. The Worker therefore keeps nonces, pending records and the in-flight memory below in Durable Objects, one instance per tier, each single-threaded with strongly consistent storage; the Node adapter is one process and needs nothing more.
+
+One sponsored transaction per origin nonce. Before any chain read, the relay reserves `(origin, nonce)` in a store instance shared by all tiers (`origins`); a second request for the same pair is refused with `ORIGIN_NONCE_IN_FLIGHT`, naming the pending txid, and costs nothing. A reservation without a txid (a request still running, or one that died between reserve and release) expires after two minutes; one with a txid lives until the sweep sees the origin nonce executed, or six hours. The reservation is per origin rather than per key because a twin can arrive on a different tier than the first submission.
+
+More keys per tier is deferred (see decisions log, 2026-09-30): it buys throughput and confirmation independence, one transaction in flight per key, but not twin prevention, which the reservation already provides with one key or many. The shape when it comes: `keys` becomes `Record<TierName, SponsorKey[]>` and the tier's object picks the key with the fewest pending.
 
 ## Replace-by-fee sweep
 
@@ -101,7 +110,7 @@ Every 10 minutes (Worker Cron Trigger, or a timer in the Node adapter): drop pen
 
 ## Rate limits and state
 
-Defaults: `5` requests per origin per hour, `500` per relay per hour. State is per-key nonces, pending records (3 day TTL), and rate-limit windows: KV in the Worker, one JSON file in the Node adapter.
+Defaults: `5` requests per origin per hour, `500` per relay per hour. State is per-key nonces, pending records (3 day TTL), origin reservations, and rate-limit windows. In the Worker the first three live in Durable Objects (`TierState`, instances `low`, `mid`, `high`, `origins`) and only the rate-limit windows in KV, where a lost update under-counts by one request and costs nothing; in the Node adapter everything is one JSON file.
 
 ## Threat model
 
@@ -110,10 +119,12 @@ Defaults: `5` requests per origin per hour, `500` per relay per hour. State is p
 | Abort griefing (sponsor pays for failing transactions) | Verification of the exact post-conditions, balance and nonce checks, live re-quote, per-origin rate limit, fee capped at the tier |
 | Fee market spike | RBF ladder within the tier on the tier's schedule; `OPENING_BID_*` and `MIN_TIER` are the operator's dials; more keys per bracket when queues form (accepted risk, see fee policy) |
 | Nonce gap blocks a key | Missing-nonce fill, chain-view reconcile, per-tier isolation, `maxPendingPerKey` headroom, RBF at the same nonce |
+| Twin transactions (double submission inside the chain's indexing lag) | Atomic nonce allocation in a single-writer store; origin-nonce reservation refused with `ORIGIN_NONCE_IN_FLIGHT`; the app follows the wallet's nonce, not one txid |
+| Chain API rate limit | Reads retried with backoff inside the client timeout; `UPSTREAM_RATE_LIMITED` instead of `INTERNAL` so the SDK moves on; an API key on the relay (50 requests per minute on the free plan) |
 | Key exposure | Keys hold only working STX; each is a separate account; rotate by generating a new key and updating the secret; the contract needs no registration of sponsors |
 | Wallet drops post-conditions | Refused with `BAD_POST_CONDITIONS`; a sponsored transaction cannot reach the chain without them |
 | Another relay intercepts the signed hex | Harmless to the user (the user pays the tier either way); the relay that co-signs earns the rebate |
 
 ## Adapters
 
-`relay/src/adapters/worker.ts` (Cloudflare Worker: KV binding `RELAY_KV`, Cron Trigger, secrets) and `relay/src/adapters/node.ts` (Node HTTP, file state, `Dockerfile`). Both call the same `route()` and `handleSponsor()`. Measured cost of verify plus sign plus route: about 6.6 ms per request in Node on the build machine; the Workers Free plan allows 10 ms of CPU per request, so confirm with `wrangler tail` after deploying and move to the paid plan if requests exceed it.
+`relay/src/adapters/worker.ts` (Cloudflare Worker: Durable Object binding `TIER_STATE`, KV binding `RELAY_KV` for rate limits, Cron Trigger, secrets) and `relay/src/adapters/node.ts` (Node HTTP, file state, `Dockerfile`). Both call the same `route()` and `handleSponsor()`. Measured cost of verify plus sign plus route: about 6.6 ms per request in Node on the build machine; the Workers Free plan allows 10 ms of CPU per request, so confirm with `wrangler tail` after deploying and move to the paid plan if requests exceed it.

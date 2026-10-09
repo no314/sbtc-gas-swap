@@ -9,9 +9,9 @@ Docs: [docs/index.md](docs/index.md). Legal: [docs/disclaimer.md](docs/disclaime
 | Folder | Contents | Tests |
 | --- | --- | --- |
 | `contracts/` | Clarinet project: `sbtc-gas-swap-v1.clar`, simnet variant, pool mocks, verbatim mainnet pool sources in `.cache/requirements` | `npm test` (vitest + simnet, 37), `clarinet check` |
-| `relay/` | Sponsor relay: pure core, Cloudflare Worker and Node adapters | `npm test` (node --test, 59) |
-| `sdk/` | `@no314/sbtc-gas-swap`: quote, build, submit, Leather and Bitflow adapters, dust-swap script | `npm test` (node --test, 57) |
-| `app/` | Reference dapp "sBTC to Stacks gas" (Vite, React, fixture mode, browser harness); passes a 1 percent integrator fee to `SP3PCJ68JW050YKQ9106JP11TXWS46163HX7NG6XH` | `npm run build && npm run verify` (172 checks) |
+| `relay/` | Sponsor relay: pure core, Cloudflare Worker and Node adapters | `npm test` (node --test, 67) |
+| `sdk/` | `@no314/sbtc-gas-swap`: quote, build, submit, Leather and Bitflow adapters, dust-swap script | `npm test` (node --test, 59) |
+| `app/` | Reference dapp "sBTC to Stacks gas" (Vite, React, fixture mode, browser harness); passes a 1 percent integrator fee to `SP3PCJ68JW050YKQ9106JP11TXWS46163HX7NG6XH` | `npm run build && npm run verify` (185 checks) |
 | `docs/` | Markdown docs read on GitHub, `sponsors.json`, mainnet sources and fixtures | |
 | `scripts/` | `publish-stx-fan.sh`: build the app and stage it into the stx.fan clone | |
 

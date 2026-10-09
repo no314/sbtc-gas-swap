@@ -1,7 +1,7 @@
 import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { deserializeTransaction, AuthType, getAddressFromPrivateKey, makeRandomPrivKey } from "@stacks/transactions";
-import { handleSponsor, buildInfo, planRbf, type RelayDeps, type RelayChain, type PendingRecord, type Policy } from "../src/core/relay.js";
+import { handleSponsor, buildInfo, planRbf, executeRbf, type RelayDeps, type RelayChain, type PendingRecord, type Policy } from "../src/core/relay.js";
 import { POLICY, RelayError, TIERS, type TierName } from "../src/core/config.js";
 import { MemoryStore } from "../src/core/store.js";
 import { buildUserSignedSwap, GOOD, USER_ADDRESS } from "./fixtures.js";
@@ -92,6 +92,16 @@ describe("handleSponsor", () => {
     // at the minimum is accepted
     assert.equal((await handleSponsor(mid, deps(fakeChain(), keys(), new MemoryStore(), { ...POLICY, minTier: "mid" }))).tier, "mid");
   });
+  test("refuses a tier that cannot carry the admission floor, before signing, naming the tier that can", async () => {
+    const chain = fakeChain();
+    // 20 uSTX per byte puts a 680-byte swap at about 13600, above the low tier
+    const low = (await buildUserSignedSwap({ ...GOOD, tier: TIERS.low })).serialize();
+    await assert.rejects(handleSponsor(low, deps(chain, keys(), new MemoryStore(), { ...POLICY, minFeePerByte: 20n })), (e: any) => e instanceof RelayError && e.code === "TIER_TOO_SMALL" && e.status === 400 && /choose mid/.test(e.message));
+    assert.equal(chain.broadcasts.length, 0);
+    // the mid tier carries it, at the floor rather than the opening bid
+    const r = await handleSponsor((await buildUserSignedSwap(GOOD)).serialize(), deps(chain, keys(), new MemoryStore(), { ...POLICY, minFeePerByte: 20n }));
+    assert.ok(BigInt(r.fee) > POLICY.openingBid.mid && BigInt(r.fee) <= TIERS.mid);
+  });
   test("refuses when the user lacks sBTC, when the nonce is stale, and when the live quote is below min-out", async () => {
     const hex = (await buildUserSignedSwap(GOOD)).serialize();
     await rejects(handleSponsor(hex, deps(fakeChain({ sbtc: 29_999n }))), "INSUFFICIENT_SBTC");
@@ -132,6 +142,70 @@ describe("handleSponsor", () => {
       const r = await handleSponsor(hex, deps(fakeChain({ quote: 2_000_000_000n }), k));
       assert.equal(r.sponsor, k[t].address);
     }
+  });
+});
+
+describe("one sponsored transaction per origin nonce", () => {
+  // 2026-09-30: a wallet's second submission seconds after the first (double click, retry after a
+  // timeout) passed the origin nonce check because the chain had not indexed the first broadcast,
+  // and ended up as a twin at the same sponsor nonce. The relay now remembers what it has in flight.
+  test("the second submission for the same origin nonce is refused, names the pending txid, and is not broadcast", async () => {
+    const chain = fakeChain();
+    const store = new MemoryStore();
+    const d = deps(chain, keys(), store);
+    const hex = (await buildUserSignedSwap(GOOD)).serialize();
+    const first = await handleSponsor(hex, d);
+    // the chain still reports the origin's next nonce as 0: exactly the window that produced the twin
+    await assert.rejects(handleSponsor(hex, d), (e: any) => e instanceof RelayError && e.code === "ORIGIN_NONCE_IN_FLIGHT" && e.status === 409 && e.message.includes(first.txid));
+    assert.equal(chain.broadcasts.length, 1);
+    const st = await store.getNonceState(d.keys.mid.address);
+    assert.deepEqual(st.pending, [7n]);
+    assert.equal(st.next, 8n);
+  });
+  test("a twin on another tier is refused too: the reservation is per origin, not per key", async () => {
+    const chain = fakeChain({ quote: 2_000_000_000n });
+    const d = deps(chain, keys(), new MemoryStore());
+    await handleSponsor((await buildUserSignedSwap({ ...GOOD, tier: TIERS.low })).serialize(), d);
+    await rejects(handleSponsor((await buildUserSignedSwap({ ...GOOD, tier: TIERS.high, minOut: TIERS.high })).serialize(), d), "ORIGIN_NONCE_IN_FLIGHT");
+    assert.equal(chain.broadcasts.length, 1);
+  });
+  test("a request that fails releases the reservation, so the user can retry", async () => {
+    const store = new MemoryStore();
+    const k = keys();
+    const hex = (await buildUserSignedSwap(GOOD)).serialize();
+    await rejects(handleSponsor(hex, deps(fakeChain({ quote: GOOD.minOut - 1n }), k, store)), "QUOTE_BELOW_MIN_OUT");
+    await rejects(handleSponsor(hex, deps(fakeChain({ sbtc: 1n }), k, store)), "INSUFFICIENT_SBTC");
+    const chain = fakeChain();
+    chain.broadcast = async () => ({ error: "transaction rejected", reason: "NotEnoughFunds" });
+    await rejects(handleSponsor(hex, deps(chain, k, store)), "BROADCAST_FAILED");
+    // the sponsor nonce taken for the failed broadcast was given back
+    assert.deepEqual(await store.getNonceState(k.mid.address), { next: 7n, pending: [] });
+    const r = await handleSponsor(hex, deps(fakeChain(), k, store));
+    assert.equal(r.tier, "mid");
+  });
+  test("the sweep releases the reservation once the origin nonce is executed", async () => {
+    const store = new MemoryStore();
+    const k = keys();
+    const hex = (await buildUserSignedSwap(GOOD)).serialize();
+    await handleSponsor(hex, deps(fakeChain(), k, store));
+    await rejects(handleSponsor(hex, deps(fakeChain(), k, store)), "ORIGIN_NONCE_IN_FLIGHT");
+    // chain now shows sponsor nonce 7 executed
+    const r = await executeRbf(deps(fakeChain({ sponsorNext: 8 }), k, store));
+    assert.equal(r.done, 1);
+    assert.deepEqual((await store.getNonceState(k.mid.address)).pending, []);
+    assert.equal(await store.getOriginReservation(USER_ADDRESS, 0n, Date.now()), null);
+    // the same nonce could in principle be submitted again; the chain's nonce check refuses it now
+    await rejects(handleSponsor(hex, deps(fakeChain({ userNext: 1 }), k, store)), "BAD_NONCE");
+  });
+  test("a reservation left by a request that died expires after two minutes; a broadcast one does not", async () => {
+    const store = new MemoryStore();
+    const t0 = 1_700_000_000_000;
+    assert.equal(await store.reserveOriginNonce(USER_ADDRESS, 3n, t0), true);
+    assert.equal(await store.reserveOriginNonce(USER_ADDRESS, 3n, t0 + 60_000), false);
+    assert.equal(await store.reserveOriginNonce(USER_ADDRESS, 3n, t0 + 3 * 60_000), true);
+    await store.confirmOriginNonce(USER_ADDRESS, 3n, "ab".repeat(32));
+    assert.equal(await store.reserveOriginNonce(USER_ADDRESS, 3n, t0 + 60 * 60_000), false);
+    assert.equal((await store.getOriginReservation(USER_ADDRESS, 3n, t0 + 60 * 60_000))?.txid, "ab".repeat(32));
   });
 });
 

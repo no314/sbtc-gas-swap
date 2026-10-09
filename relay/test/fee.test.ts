@@ -1,6 +1,6 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { computeFee, acceptedTiers, bumpFee, type FeeInputs } from "../src/core/fee.js";
+import { computeFee, acceptedTiers, bumpFee, admissionFloor, tierCoversFloor, lowestAdmissibleTier, type FeeInputs } from "../src/core/fee.js";
 import { POLICY, TIERS } from "../src/core/config.js";
 
 const base: FeeInputs = { tierName: "mid", openingBid: POLICY.openingBid, byteLength: 420, minPerByte: 1n };
@@ -63,5 +63,20 @@ describe("bumpFee (RBF)", () => {
   test("low and mid ladders from the shipped opening bids", () => {
     assert.equal(bumpFee(3_000n, TIERS.low, POLICY.rbfBumpBips), 3_300n);
     assert.equal(bumpFee(6_000n, TIERS.mid, POLICY.rbfBumpBips), 6_600n);
+  });
+});
+
+describe("admission floor", () => {
+  test("a real swap (about 680 bytes) is covered by every tier with a wide margin", () => {
+    assert.equal(admissionFloor(682, 1n), 682n);
+    for (const t of ["low", "mid", "high"] as const) assert.ok(tierCoversFloor(t, 682, 1n));
+    assert.equal(lowestAdmissibleTier(682, 1n), "low");
+  });
+  test("tiers stop covering the floor exactly at their value", () => {
+    assert.ok(tierCoversFloor("low", 10_000, 1n));
+    assert.ok(!tierCoversFloor("low", 10_001, 1n));
+    assert.equal(lowestAdmissibleTier(10_001, 1n), "mid");
+    assert.equal(lowestAdmissibleTier(100_001, 1n), "high");
+    assert.equal(lowestAdmissibleTier(1_000_001, 1n), null);
   });
 });
