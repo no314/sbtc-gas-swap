@@ -53,6 +53,8 @@ describe("HTTP routes", () => {
     const j = (await twin.json()) as any;
     assert.equal(j.code, "ORIGIN_NONCE_IN_FLIGHT");
     assert.ok(j.message.includes("cd".repeat(32)));
+    // the pending txid is a field of its own, so the app can follow it without parsing the message
+    assert.equal(j.txid, "cd".repeat(32));
   });
   test("a 429 from the chain API is UPSTREAM_RATE_LIMITED 503, not INTERNAL", async () => {
     const d = deps();

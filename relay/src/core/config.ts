@@ -117,6 +117,7 @@ export const ERROR_CODES = [
   "ORIGIN_NONCE_IN_FLIGHT",
   "MIN_OUT_BELOW_TIER",
   "BAD_BIPS",
+  "INTEGRATOR_IS_ORIGIN",
   "BAD_POST_CONDITIONS",
   "INSUFFICIENT_SBTC",
   "BAD_NONCE",
@@ -131,7 +132,9 @@ export const ERROR_CODES = [
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
 export class RelayError extends Error {
-  constructor(public code: ErrorCode, message: string, public status = 400) {
+  // `details` are extra JSON fields in the error body (for example the pending txid of a twin),
+  // so a client can act on them without parsing the message.
+  constructor(public code: ErrorCode, message: string, public status = 400, public details: Record<string, string> = {}) {
     super(message);
   }
 }

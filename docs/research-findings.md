@@ -4,7 +4,7 @@ Date: 2026-09-05. Chain tip at query time: stacks 8,919,826 / burn 965,540. All 
 
 ## 1. Stacks sponsored-transaction mechanics (stacks-core master, Clarity 2+)
 
-- Origin signature commits only to "I am sponsored", its own nonce, and its own fee field (set to 0). It does NOT commit to sponsor identity, sponsor fee, or sponsor nonce. The sponsor can set or bump the fee and re-sign freely; the txid changes each time. Sponsor-side RBF is therefore trivial.
+- Origin signature commits only to "I am sponsored", its own nonce, and its own fee field (set to 0). It does NOT commit to sponsor identity, sponsor fee, or sponsor nonce. The sponsor can set or bump the fee and re-sign freely; the txid changes each time. Sponsor-side RBF therefore needs no new user signature.
 - `tx-sponsor?` (Clarity 2+, `(optional principal)`) is available inside contract calls and survives `as-contract` and nested `contract-call?`. `stx-transfer?` only requires `from == tx-sender`, so a contract can pay the sponsor with `(stx-transfer? amt tx-sender sponsor)` where sponsor comes from `tx-sponsor?`. This makes sponsoring permissionless: any relay that signs the tx gets paid.
 - Clarity has no access to the tx fee. Any rebate must be a parameter (fee tier), not the actual fee.
 - Fee is charged to the sponsor on runtime abort (contract `err`, post-condition failure): tx is mined, both nonces advance, state rolls back. Mempool rejection (BadNonce, NotEnoughFunds, wrong arg types, missing function) costs nothing.

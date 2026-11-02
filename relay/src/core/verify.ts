@@ -99,6 +99,15 @@ export async function verifySponsoredSwap(hex: string): Promise<VerifiedSwap> {
   if (!pool) throw new RelayError("UNKNOWN_POOL", `pool id ${args.poolId}`);
   if (args.integratorBips > MAX_INTEGRATOR_BIPS) throw new RelayError("BAD_BIPS", `integrator bips ${args.integratorBips} above ${MAX_INTEGRATOR_BIPS}`);
   if (args.amount === 0n) throw new RelayError("BAD_ARGS", "amount is 0");
+  // The contract pays the integrator fee with an sBTC transfer from the origin to `integrator`.
+  // `ft-transfer?` returns (err u2) when sender and recipient are the same principal, so an
+  // origin that names itself as integrator with a non-zero fee is a guaranteed runtime abort
+  // whose miner fee the sponsor pays. The contract does not check this; the relay must, and it
+  // refuses the pair outright rather than only the fee-bearing case, since the pair is never
+  // meaningful.
+  if (args.integrator === originAddress) {
+    throw new RelayError("INTEGRATOR_IS_ORIGIN", `integrator ${args.integrator} is the origin; the integrator fee transfer would abort`);
+  }
 
   const serviceFee = (args.amount * FEE_BIPS) / BIPS_DENOM;
   const effectiveBips = args.integrator ? args.integratorBips : 0n;

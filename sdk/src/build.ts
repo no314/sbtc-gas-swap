@@ -4,7 +4,7 @@ import { minOutFor } from "./defaults.js";
 import { expectedPostConditions } from "./postconditions.js";
 import { splitFees, type FeeSplit } from "./quote/fees.js";
 
-export type BuildErrorCode = "BAD_AMOUNT" | "BAD_BIPS" | "UNKNOWN_POOL" | "MIN_OUT_BELOW_TIER";
+export type BuildErrorCode = "BAD_AMOUNT" | "BAD_BIPS" | "INTEGRATOR_IS_ORIGIN" | "UNKNOWN_POOL" | "MIN_OUT_BELOW_TIER";
 export class SwapBuildError extends Error {
   constructor(public code: BuildErrorCode, message: string) { super(message); }
 }
@@ -41,6 +41,12 @@ export function buildSwapCall(i: BuildSwapInput): SwapCall {
   if (i.amountSats <= 0n) throw new SwapBuildError("BAD_AMOUNT", "amount must be positive");
   const bips = i.integratorBips ?? 0n;
   if (bips < 0n || bips > MAX_INTEGRATOR_BIPS) throw new SwapBuildError("BAD_BIPS", `integrator bips must be 0..${MAX_INTEGRATOR_BIPS}`);
+  // The integrator fee is an sBTC transfer from the user to the integrator; a transfer to the
+  // same principal aborts the swap. The relay refuses the pair too; refusing here keeps the
+  // wallet from opening on a call that can never be sponsored.
+  if (i.integrator !== undefined && i.integrator === i.user) {
+    throw new SwapBuildError("INTEGRATOR_IS_ORIGIN", "integrator must not be the user who signs the swap");
+  }
   if (!POOLS[i.poolId]) throw new SwapBuildError("UNKNOWN_POOL", `pool ${i.poolId}`);
   const tierUstx = TIERS[i.tier];
   const minOut = minOutFor(i.quoteOut, i.slippageBips);

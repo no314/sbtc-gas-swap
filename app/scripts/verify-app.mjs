@@ -114,6 +114,10 @@ const quoteReady = () => page.waitForFunction(() => {
   return pool && pool.children[1].textContent !== "-" && rl && !document.querySelector(".readerline .spin")
     && !document.querySelector(".linkbtn:disabled") && bal && bal.value !== "reading";
 }, null, { timeout: 30000 });
+// Wait for a state the next check expects, so it does not read the page mid-update. On timeout
+// it returns and the check fails as before.
+const settled = (fn) => page.waitForFunction(fn, null, { timeout: 10000 }).catch(() => {});
+const primaryEnabled = () => !document.querySelector(".panel .foot .btn-primary")?.disabled;
 
 // ---------- fresh load, step 1 (fixture happy) ----------
 await open("happy");
@@ -319,6 +323,7 @@ check("velar-down: Velar listed as unavailable", (await kv("Pools read")).includ
 check("velar-down: no zero for Velar anywhere", !/velar-univ2-70 0 STX/.test(await body()));
 check("velar-down: the quote leaves the unread pool out", (await text(".panel .status.info")).includes("velar-univ2-70 could not be read") && (await text(".panel .status.info")).includes("so the quote leaves it out"));
 check("velar-down: XYK wins", (await kv("Pool")) === "bitflow-xyk" && (await kv("Quote")) === "14.976181 STX (14,976,181 uSTX)");
+await settled(primaryEnabled);
 check("velar-down: Continue still enabled", !(await primary().isDisabled()));
 await invariants("velar-down step 2", 2);
 await shot("velar-down-step2-amount");
@@ -345,6 +350,7 @@ check("min-out-below-tier: Continue disabled", await primary().isDisabled());
 await invariants("min-out-below-tier step 2", 2);
 await shot("min-out-below-tier-step2-amount");
 await page.fill(".unit-row input", "5000");
+await settled(() => !document.querySelector(".status.err") && !document.querySelector(".panel .foot .btn-primary")?.disabled);
 check("min-out-below-tier: raising the amount clears the error", (await page.locator(".status.err").count()) === 0 && !(await primary().isDisabled()));
 
 // ---------- tx-abort-1020: explanation and retry with 2 percent ----------
@@ -424,6 +430,21 @@ await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.text
 await page.waitForFunction(() => [...document.querySelectorAll(".panel .kv > span:first-child")].some((k) => k.textContent === "Also pending"), null, { timeout: 15000 });
 check("tx-twin-pending: both shown as pending, the twin under Also pending", (await text(".panel .badge")) === "pending" && (await kv("Also pending")) === `0x${REPLACEMENT_TXID}`);
 await shot("tx-twin-pending-step4");
+
+// ---------- twin-in-flight: the relay already broadcast this nonce; the app follows it ----------
+await open("twin-in-flight");
+await connectLeather();
+await quoteReady();
+await primary().click();
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Sign and swap");
+await primary().click();
+await page.waitForFunction(() => document.querySelector(".rail-tab .name")?.textContent === "Done", null, { timeout: 30000 });
+check("twin-in-flight: ORIGIN_NONCE_IN_FLIGHT with a txid lands on the Done page, not on an error", (await kv("Transaction")) === `0x${REPLACEMENT_TXID}` && (await page.locator(".status.err").count()) === 0);
+check("twin-in-flight: no sponsor address or miner fee is claimed, since this request did not sponsor", (await kv("Sponsor address")) === null);
+check("twin-in-flight: the URL carries the relay's txid with origin and nonce", new RegExp(`txid=${REPLACEMENT_TXID}&origin=${USER}&nonce=5`).test(page.url()));
+await page.waitForFunction(() => document.querySelector(".panel .badge.b-ok")?.textContent === "success", null, { timeout: 30000 });
+check("twin-in-flight: the followed transaction mines with its ledgers", (await ledger("STX"))?.rows.at(-1)[2] === "14.992342");
+await shot("twin-in-flight-step4");
 
 // ---------- ?txid= reload lands on step 4 ----------
 await page.goto(`${BASE}/?chain=mainnet&txid=${TXID}&fixture=tx-success`);

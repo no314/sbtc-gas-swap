@@ -126,6 +126,13 @@ export const FIXTURES = {
     txSequence: [txBody("pending")],
     mempoolTxs: [txBody("pending", null, { tx_id: "0x" + REPLACEMENT_TXID, fee_rate: "3300" })],
   },
+  // The relay already broadcast this nonce (the first request finished after the browser gave
+  // up): it refuses the second submission naming the pending txid, and that transaction mines.
+  "twin-in-flight": {
+    inputs: { amount: "5000", unit: "sats" }, balanceSats: 250_000n, minTier: "low",
+    twinInFlight: true,
+    txSequence: [txBody("success", SUCCESS_RESULT, { tx_id: "0x" + REPLACEMENT_TXID, block_height: TIP + 3 })],
+  },
   // The swap mines successfully on the first poll.
   "tx-success": {
     inputs: { amount: "5000", unit: "sats" }, balanceSats: 250_000n, minTier: "low",
@@ -168,6 +175,7 @@ export function makeFixtureFetch(fx, contractSource) {
     if (u.includes("/extended/v1/tx/")) {
       const seq = fx.txSequence;
       if (fx.txNotFound) return json({ statusCode: 404, error: "Not Found", message: "could not find transaction by ID" }, 404);
+      if (fx.twinInFlight && !u.includes(REPLACEMENT_TXID)) return json({ statusCode: 404, error: "Not Found", message: "could not find transaction by ID" }, 404);
       if (!sponsored || seq.length === 0) return json({ error: "not found", tx_status: undefined });
       const body = seq[Math.min(polls, seq.length - 1)];
       polls++;
@@ -181,6 +189,7 @@ export function makeFixtureFetch(fx, contractSource) {
         try { tx = JSON.parse(init.body).tx; } catch {}
         if (!/^[0-9a-f]+$/i.test(String(tx))) return json({ code: "MALFORMED", message: "tx is not hex" }, 400);
         sponsored = true;
+        if (fx.twinInFlight) return json({ code: "ORIGIN_NONCE_IN_FLIGHT", message: `nonce 5 of ${FIXTURE_USER} is already sponsored and pending as ${REPLACEMENT_TXID}`, txid: REPLACEMENT_TXID }, 409);
         return json({ txid: FIXTURE_TXID, sponsoredTx: SPONSORED_HEX, fee: "3200", tier: fx.minTier, sponsor: SPONSORS[fx.minTier] });
       }
     }

@@ -1,8 +1,8 @@
 # sBTC to Stacks gas (app/)
 
-Standalone reference dapp for `sbtc-gas-swap-v1`: a user holding sBTC and no STX swaps sBTC to STX in one sponsored transaction, and the sponsor is repaid inside that transaction. Four steps: Connect, Amount, Sign and sponsor, Done. Mainnet only.
+Standalone reference dapp for `sbtc-gas-swap-v1`: a user holding sBTC and no STX swaps sBTC to STX in one sponsored transaction, and the sponsor is repaid inside that transaction. Four steps: Connect, Amount, Sign and swap, Done. Mainnet only.
 
-Static Vite + React build (architecture ladder rung 1). No backend of its own: reads go to a Stacks node or the Hiro API (`?api=` overrides them, reads only), the wallet signs, a relay from `sponsors.json` co-signs and broadcasts. Quoting, post-conditions, relay discovery and submission come from the SDK in `../sdk` (`@no314/sbtc-gas-swap`, `file:../sdk`); the wallet bridge uses the vendored, pinned `@stacks/connect` and `@stacks/transactions` bundles in `src/vendor/`.
+Static Vite + React build with no backend of its own. Reads go to a Stacks node or the Hiro API (`?api=` overrides them, reads only), the wallet signs, and a relay from `sponsors.json` co-signs and broadcasts. Quoting, post-conditions, relay discovery and submission come from the SDK in `../sdk` (`@no314/sbtc-gas-swap`, `file:../sdk`); the wallet bridge uses the vendored, pinned `@stacks/connect` and `@stacks/transactions` bundles in `src/vendor/`.
 
 ## Commands
 
@@ -13,15 +13,15 @@ npm run verify     # node --test (pure helpers, fixture parity), verify-hashes, 
 npm run shots      # the harness walk with screenshots only (exit 0 regardless)
 ```
 
-The harness (`scripts/verify-app.mjs`) drives headless Chromium (playwright-core, `/opt/pw-browsers/chromium` or `CHROMIUM=`) through every fixture in `src/fixtures.js`, asserts zero external requests, an empty `localStorage` throughout, no em dash in rendered text, the disclaimer link on every step, rail geometry, and the step-specific criteria, and writes every step in every fixture state to `screenshots/` at device scale 2.
+The harness (`scripts/verify-app.mjs`) drives headless Chromium (playwright-core, `/opt/pw-browsers/chromium` or `CHROMIUM=`) through every fixture in `src/fixtures.js`. It asserts zero external requests, an empty `localStorage` throughout, no em dash in rendered text, the disclaimer link on every step, rail geometry, and the step-specific criteria. It writes every step in every fixture state to `screenshots/` at device scale 2.
 
 ## URL contract
 
-`?chain=mainnet` always; `?txid=`, `?origin=` and `?nonce=` after a relay broadcast (the txid the relay returned, and the wallet address and nonce the Done page follows); `?api=` always at its current value (default `https://api.hiro.so`); `?fixture=<name>` runs the app offline against recorded data (`happy`, `velar-down`, `no-relay`, `min-out-below-tier`, `tx-abort-1020`, `tx-success`, `tx-replaced`, `tx-other-sender`, `tx-twin-pending`). Nothing is stored in the browser; the URL is the whole state.
+`?chain=mainnet` always; `?txid=`, `?origin=` and `?nonce=` after a relay broadcast (the txid the relay returned, and the wallet address and nonce the Done page follows); `?api=` always at its current value (default `https://api.hiro.so`); `?fixture=<name>` runs the app offline against recorded data (`happy`, `velar-down`, `no-relay`, `min-out-below-tier`, `tx-abort-1020`, `tx-success`, `tx-replaced`, `tx-other-sender`, `tx-twin-pending`, `twin-in-flight`). Nothing is stored in the browser; the URL is the whole state.
 
 ## Done page
 
-The swap is identified by the wallet's address and nonce, not by one txid. A relay fee bump, or a second submission that reached a miner first, mines under another txid; the page reads the relay's txid, the wallet's confirmed transactions and its mempool every 10 seconds and resolves whichever transaction at that nonce mined. The row with the txid the relay returned is never removed; when another one mined it is marked "Replaced by fee" and the mined one appears under "Mined as". Only transactions sent by the wallet count.
+The swap is identified by the wallet's address and nonce, not by one txid. A relay fee bump, or a second submission that reached a miner first, mines under another txid. The page reads the relay's txid, the wallet's confirmed transactions and its mempool every 10 seconds, and resolves whichever transaction at that nonce mined. The row with the txid the relay returned is never removed; when another one mined it is marked "Replaced by fee" and the mined one appears under "Mined as". Only transactions sent by the wallet count.
 
 ## Deploy
 

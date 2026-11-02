@@ -20,7 +20,7 @@ export async function route(req: Request, deps: RelayDeps, opts: { contractId: s
     }
     return json({ code: "NOT_FOUND", message: `${req.method} ${url.pathname}` }, 404);
   } catch (e) {
-    if (e instanceof RelayError) return json({ code: e.code, message: e.message }, e.status);
+    if (e instanceof RelayError) return json({ code: e.code, message: e.message, ...e.details }, e.status);
     if (e instanceof ChainError && e.status === 429) {
       // The chain API refused the relay's own reads (2026-09-29: every INTERNAL was this). A relay
       // condition, not a verdict on the transaction: the SDK moves on or retries.

@@ -8,11 +8,11 @@ For Bitflow. Two of the three whitelisted pools are Bitflow pools: `SM1793C4R5PZ
 
 ## How it fits Bitflow's aggregator
 
-Bitflow's SDK (`@bitflowlabs/core-sdk` 4.2.0) enumerates routes from `getAllRoutes`, quotes each client side, and executes the best with `openContractCall`. A sponsored route is one more candidate: quote with `getSponsoredRoute` (its `userReceivesUstx` is comparable to other routes' outputs, since the tier is already subtracted), and when the user has no STX, or chooses "pay the fee from the swap", execute through `call` and `submit` instead of `openContractCall`. The `provider` argument that some Bitflow wrappers accept has an equivalent here: pass Bitflow's principal as `integrator` with up to `100` bips.
+Bitflow's SDK (`@bitflowlabs/core-sdk` 4.2.0) enumerates routes from `getAllRoutes`, quotes each client side, and executes the best with `openContractCall`. A sponsored route is one more candidate. Quote it with `getSponsoredRoute`; its `userReceivesUstx` is comparable to other routes' outputs, since the tier is already subtracted. When the user has no STX, or chooses "pay the fee from the swap", execute through `call` and `submit` instead of `openContractCall`. The `provider` argument that some Bitflow wrappers accept has an equivalent here: pass Bitflow's principal as `integrator` with up to `100` bips.
 
 ## Pool selection
 
-The SDK quotes all three whitelisted pools from their on-chain state (the same arithmetic as the deployed contracts, see [sdk.md](sdk.md#quoting)) and picks the highest output; the DLMM pool is skipped when the best other output is at most 100 STX because its bin walk costs more runtime than a small swap saves. Bitflow can pass a fixed `poolId` by building the call with `buildSwapCall` directly.
+The SDK quotes all three listed pools from their on-chain state (the same arithmetic as the deployed contracts, see [sdk.md](sdk.md#quoting)) and picks the highest output. The DLMM pool is skipped when the best other output is at most 100 STX, because its bin walk costs more runtime than a small swap saves. Bitflow can pass a fixed `poolId` by building the call with `buildSwapCall` directly.
 
 ## What Bitflow could add
 
