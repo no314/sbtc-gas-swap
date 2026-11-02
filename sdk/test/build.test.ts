@@ -80,6 +80,8 @@ describe("buildSwapCall", () => {
   });
   test("refuses bad bips, unknown pool, zero amount", () => {
     assert.throws(() => buildSwapCall({ ...base, integrator: USER, integratorBips: 101n }), (e: any) => e.code === "BAD_BIPS");
+    assert.throws(() => buildSwapCall({ ...base, integrator: base.user, integratorBips: 100n }), (e: any) => e.code === "INTEGRATOR_IS_ORIGIN");
+    assert.throws(() => buildSwapCall({ ...base, integrator: base.user, integratorBips: 0n }), (e: any) => e.code === "INTEGRATOR_IS_ORIGIN");
     assert.throws(() => buildSwapCall({ ...base, poolId: 7 }), (e: any) => e.code === "UNKNOWN_POOL");
     assert.throws(() => buildSwapCall({ ...base, amountSats: 0n }), (e: any) => e.code === "BAD_AMOUNT");
   });

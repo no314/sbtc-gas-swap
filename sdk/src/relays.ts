@@ -17,7 +17,9 @@ export interface RelayInfo {
 export interface RelayCandidate { url: string; info?: RelayInfo; error?: string }
 
 export interface SubmitOk { ok: true; txid: string; relay: string; fee: string; tier: string; sponsor: string; sponsoredTx: string }
-export interface SubmitFail { ok: false; attempts: { relay: string; code: string; message: string }[] }
+// `txid` is set on ORIGIN_NONCE_IN_FLIGHT when the relay already broadcast this origin nonce: the
+// swap is on its way under that id and the caller should follow it rather than report an error.
+export interface SubmitFail { ok: false; attempts: { relay: string; code: string; message: string; txid?: string }[] }
 
 export const DEFAULT_SPONSORS_URL = "https://stx.fan/zero_to/gas/sponsors.json";
 
@@ -83,9 +85,15 @@ export class RelayClient {
         return { ok: true, txid: res.txid, relay: r.url, fee: res.fee, tier: res.tier, sponsor: res.sponsor, sponsoredTx: res.sponsoredTx };
       } catch (e) {
         const body = (e as any).body as string | undefined;
-        let code = "RELAY_UNREACHABLE", message = (e as Error).message;
-        if (body) { try { const j = JSON.parse(body); code = j.code ?? code; message = j.message ?? message; } catch { message = body.slice(0, 200); } }
-        attempts.push({ relay: r.url, code, message });
+        let code = "RELAY_UNREACHABLE", message = (e as Error).message, txid: string | undefined;
+        if (body) {
+          try {
+            const j = JSON.parse(body); code = j.code ?? code; message = j.message ?? message;
+            const t = typeof j.txid === "string" ? j.txid : (String(message).match(/\b[0-9a-f]{64}\b/) ?? [])[0];
+            if (t && /^[0-9a-f]{64}$/.test(t)) txid = t;
+          } catch { message = body.slice(0, 200); }
+        }
+        attempts.push({ relay: r.url, code, message, ...(txid ? { txid } : {}) });
         // A verdict about the transaction itself is final; another relay will say the same.
         if (FINAL_CODES.has(code)) break;
       }
@@ -94,4 +102,4 @@ export class RelayClient {
   }
 }
 
-const FINAL_CODES = new Set(["NOT_SPONSORED_AUTH", "WRONG_NETWORK", "WRONG_CONTRACT", "WRONG_FUNCTION", "BAD_ARGS", "UNKNOWN_POOL", "BAD_TIER", "MIN_OUT_BELOW_TIER", "BAD_BIPS", "BAD_POST_CONDITIONS", "INSUFFICIENT_SBTC", "MALFORMED", "BAD_SIGNATURE", "TIER_TOO_SMALL", "ORIGIN_NONCE_IN_FLIGHT"]);
+const FINAL_CODES = new Set(["NOT_SPONSORED_AUTH", "WRONG_NETWORK", "WRONG_CONTRACT", "WRONG_FUNCTION", "BAD_ARGS", "UNKNOWN_POOL", "BAD_TIER", "MIN_OUT_BELOW_TIER", "BAD_BIPS", "INTEGRATOR_IS_ORIGIN", "BAD_POST_CONDITIONS", "INSUFFICIENT_SBTC", "MALFORMED", "BAD_SIGNATURE", "TIER_TOO_SMALL", "ORIGIN_NONCE_IN_FLIGHT"]);

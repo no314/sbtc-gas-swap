@@ -59,6 +59,23 @@ describe("RelayClient", () => {
     assert.equal((fail as any).attempts.length, 1);
     assert.equal(bCalls, before, "final verdicts are not retried elsewhere");
   });
+  test("submit surfaces the pending txid of a twin from the body field, or from the message of an older relay", async () => {
+    const id = "e4".repeat(32);
+    const c = fakeRelays({
+      "https://a.example": () => new Response(JSON.stringify({ code: "ORIGIN_NONCE_IN_FLIGHT", message: `nonce 1 of SP1 is already sponsored and pending as ${id}`, txid: id }), { status: 409 }),
+    });
+    const fail = await c.submit("00", [info("https://a.example", "low")]) as any;
+    assert.equal(fail.ok, false);
+    assert.equal(fail.attempts[0].txid, id);
+    const old = fakeRelays({
+      "https://a.example": () => new Response(JSON.stringify({ code: "ORIGIN_NONCE_IN_FLIGHT", message: `nonce 1 of SP1 is already sponsored and pending as ${id}` }), { status: 409 }),
+    });
+    assert.equal(((await old.submit("00", [info("https://a.example", "low")])) as any).attempts[0].txid, id);
+    const running = fakeRelays({
+      "https://a.example": () => new Response(JSON.stringify({ code: "ORIGIN_NONCE_IN_FLIGHT", message: "nonce 1 of SP1 is being sponsored by another request right now" }), { status: 409 }),
+    });
+    assert.equal(((await running.submit("00", [info("https://a.example", "low")])) as any).attempts[0].txid, undefined);
+  });
 });
 
 describe("explanations", () => {

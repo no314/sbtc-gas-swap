@@ -53,7 +53,7 @@ export function Step1({ account, walletName, catalog, onConnectWith, onDisconnec
     <p className="step-sub" style={{ marginTop: 16, marginBottom: 0 }}>Untested wallet: before you approve, check that its signing screen lists the three limits and a fee of 0.</p>
     <StatusLine kind="err">{connErr}</StatusLine>
     <How>
-      <p>Your wallet signs a sponsored transaction, one that someone else pays the miner fee for, and hands it back to this page without broadcasting it. The transaction carries three post-conditions, limits the blockchain enforces on what it may move: the sBTC you send, the network fee in STX, and the minimum STX you receive.</p>
+      <p>Your wallet signs a sponsored transaction, one that someone else pays the miner fee for, and hands it back to this page without broadcasting it. The transaction carries three post-conditions, limits the blockchain enforces on what it may move. They cover the sBTC you send, the network fee in STX, and the minimum STX you receive.</p>
       <p>The sponsor checks those limits byte for byte and refuses a transaction without them. A wallet that drops post-conditions cannot be sponsored.</p>
     </How>
   </div>
@@ -112,13 +112,13 @@ export function Step2({ account, onConnect, verification, relays, snapshot, snap
   const tierRank = (t) => TIER_LIST.findIndex((x) => x.key === t);
 
   return <div className="body-wrap"><div className="body">
-    <p className="step-sub">Enter how much sBTC to swap. The quote comes from the pools' balances at the time shown; press Refresh for a new one. The network fee is the STX you repay the sponsor, taken from the STX the pool pays you.</p>
+    <p className="step-sub">Enter how much sBTC to swap. The quote comes from the pools' balances at the time shown. Press Refresh for a new one. The network fee is the STX you repay the sponsor, taken from the STX the pool pays you.</p>
 
     <div className="readerline">
       {verification == null ? <><span className="spin"></span> reading the contract</>
         : verification.ok ? <><Badge k="ok">contract verified</Badge> the live contract matches the reviewed source</>
         : verification.error ? <><Badge k="idle">contract unavailable</Badge> this page could not read the contract: <span className="mono">{verification.error}</span>. Refresh to retry.</>
-        : <><Badge k="bad">contract mismatch</Badge> the live contract does not match the reviewed source (live structure hash <span className="mono">{verification.liveHash}</span>, reviewed <span className="mono">{verification.pinnedHash}</span>). Swapping is blocked.</>}
+        : <><Badge k="bad">contract mismatch</Badge> the live contract does not match the reviewed source (live structure hash <span className="mono">{verification.liveHash}</span>, reviewed <span className="mono">{verification.pinnedHash}</span>). This page blocks the swap.</>}
     </div>
 
     <div className="two amount-row">
@@ -195,7 +195,7 @@ export function Step2({ account, onConnect, verification, relays, snapshot, snap
       : `${buildErr.message}.`}</StatusLine> : null}
     {relays && !ranked.length ? <StatusLine kind="err">{relays.infos.length ? `No sponsor service accepts the ${tier} fee level; the lowest they accept is ${relays.minTier}.` : "No sponsor service answered, so nothing can pay for the swap right now. Refresh to retry."}</StatusLine> : null}
     <How>
-      <p>The quote reads the three supported pools and picks the one that pays the most STX for the sBTC going into the pool after fees. The minimum you receive is the quote minus the slippage, the amount the price may move before the swap refuses. It must stay above the network fee, because the sponsor is repaid out of it. This page stores nothing; a reload starts over.</p>
+      <p>The quote reads the three supported pools and picks the one that pays the most STX for the sBTC going into the pool after fees. The minimum you receive is the quote minus the slippage, the amount the price may move before the swap refuses. It must stay above the network fee, because the sponsor is repaid out of it. This page stores nothing. A reload starts over.</p>
       <div className="kvs">
         {verification && verification.ok ? <KV label="Contract structure hash">{verification.liveHash}</KV> : null}
         {verification && verification.ok ? <KV label="Contract published in Stacks block">{group(verification.publishHeight)}</KV> : null}
@@ -260,6 +260,14 @@ export function Step3({ clients, account, onConnect, committed, relays, onSponso
     setPhase("sponsoring");
     const sub = await clients.relay.submit(hex, ranked).catch((e) => ({ ok: false, attempts: [{ relay: "-", code: "RELAY_UNREACHABLE", message: String((e && e.message) || e) }] }));
     if (!sub.ok) {
+      // The relay already broadcast this nonce (a double click, or a retry after a timeout): the
+      // swap is on its way under the txid the relay names. Follow it instead of reporting an error.
+      const inFlight = sub.attempts.find((a) => a.code === "ORIGIN_NONCE_IN_FLIGHT" && a.txid);
+      if (inFlight) {
+        setPhase("idle");
+        onSponsored({ txid: normTxid(inFlight.txid), relay: inFlight.relay, sponsor: null, fee: null, origin: account, originNonce: originNonceFromHex(hex) });
+        return;
+      }
       setErr(<div>{sub.attempts.map((a, i) => { const x = explainRelayError(a.code); return <div key={i}><span className="mono">{a.relay}</span> ({a.code}): {x.title} {x.action}{a.message && a.message !== a.code ? <div className="hint">The sponsor service said: <span className="mono">{a.message}</span></div> : null}</div>; })}{sub.attempts.length === 0 ? "No sponsor service was tried." : null}</div>);
       setPhase("idle"); return;
     }
@@ -305,7 +313,7 @@ export function Step3({ clients, account, onConnect, committed, relays, onSponso
 // ---------- Step 4: Done ----------
 // Two ledgers on the Done page, from the mined transaction only. One unit per ledger, stated
 // once in the header; deductions carry a minus in their own column so digits stack; the total
-// is ruled above and weighted. No colour: sign and position carry the meaning. The pool swap
+// is ruled above and weighted. No color: sign and position carry the meaning. The pool swap
 // between the two ledgers is on the review step and is deliberately not a row here.
 function Ledger({ title, unit, rows, total, fmt }) {
   return <div className="ledger">
@@ -368,7 +376,7 @@ export function Step4({ clients, txid, origin, originNonce, result, onRetry, onB
     {outcome.kind === "success" ? <StatusLine kind="ok">The swap is mined. You now hold STX for gas; the <a href={explorerAddr(tx.sender_address)} target="_blank" rel="noopener">Stacks explorer</a> shows the balance.</StatusLine> : null}
     {fail ? <StatusLine kind="err"><div>{fail.title} {fail.action}</div>{outcome.repr ? <div>Result: <span className="mono">{outcome.repr}</span>. The sponsor paid the miner fee.</div> : null}</StatusLine> : null}
     <How>
-      <p>This page follows the transaction nonce, your account's transaction counter, rather than one transaction id, because the transaction can be replaced. The sponsor re-signs it with a higher miner fee if it sits unmined (after 10 minutes at the high fee level, 30 at low and mid), and a transaction that reached the sponsor twice can mine under either id. Whichever transaction mines at this nonce is the result; the id the sponsor returned stays listed and reads Replaced by fee.</p>
+      <p>This page follows the transaction nonce, your account's transaction counter, rather than one transaction id, because the transaction can be replaced. The sponsor re-signs it with a higher miner fee if it sits unmined (after 10 minutes at the high fee level, 30 at low and mid). A transaction that reached the sponsor twice can mine under either id. Whichever transaction mines at this nonce is the result. The id the sponsor returned stays listed and reads Replaced by fee.</p>
       <div className="kvs">
         {origin && originNonce != null ? <KV label="Transaction nonce">{String(originNonce)}</KV> : null}
         {origin && originNonce != null ? <KV label="Account">{origin}</KV> : null}
@@ -392,7 +400,7 @@ export function StepInfo({ step }) {
       <p><ExtLink href={`${DOCS}/contract.md`}>Contract: fees, pools, error codes</ExtLink> <ExtLink href={`${DOCS}/sdk.md`}>SDK: quote and defaults</ExtLink></p></div>,
     3: <div><p>Any sponsor service holding your signed transaction may pay for it; the contract repays whichever one gets it mined, never more than the fee level you chose. A sponsor may refuse for any reason, and a refusal costs you nothing.</p>
       <p><ExtLink href={`${DOCS}/relay.md`}>Sponsor service API and error codes</ExtLink> <ExtLink href={`${DOCS}/contract.md#post-conditions`}>Post-conditions the sponsor requires</ExtLink> <ExtLink href="./disclaimer.html">Disclaimer</ExtLink></p></div>,
-    4: <div><p>A swap that does not go through moves nothing: your post-conditions and the contract's own checks undo each transfer, and the sponsor paid the miner fee. The common cause is the price moving below your minimum between the quote and the block; 2 or 5 percent slippage clears it in most cases.</p>
+    4: <div><p>A swap that does not go through moves nothing. Your post-conditions and the contract's own checks undo each transfer, and the sponsor paid the miner fee. The common cause is the price moving below your minimum between the quote and the block. A retry with 2 or 5 percent slippage allows for a larger move.</p>
       <p><ExtLink href={`${DOCS}/contract.md#error-codes`}>Error codes</ExtLink> <ExtLink href="https://explorer.hiro.so/?chain=mainnet">Stacks explorer</ExtLink></p></div>,
   };
   return <>

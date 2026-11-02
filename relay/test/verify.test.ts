@@ -99,6 +99,12 @@ describe("verifySponsoredSwap rejects", () => {
   test("unknown pool", async () => {
     await rejects(verify(await hexOf({ ...GOOD, poolId: 9 })), "UNKNOWN_POOL");
   });
+  test("integrator equal to the origin, with and without a fee", async () => {
+    // ft-transfer? from the origin to itself returns (err u2); the swap would abort and the
+    // sponsor would pay the miner fee for nothing.
+    await rejects(verify(await hexOf({ ...GOOD_WITH_INTEGRATOR, integrator: USER_ADDRESS, integratorBips: 100n })), "INTEGRATOR_IS_ORIGIN");
+    await rejects(verify(await hexOf({ ...GOOD_WITH_INTEGRATOR, integrator: USER_ADDRESS, integratorBips: 0n })), "INTEGRATOR_IS_ORIGIN");
+  });
   test("integrator bips above 100", async () => {
     await rejects(verify(await hexOf({ ...GOOD_WITH_INTEGRATOR, integratorBips: 101n })), "BAD_BIPS");
   });

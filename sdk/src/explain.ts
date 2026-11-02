@@ -7,14 +7,15 @@ const RELAY: Record<string, Explanation> = {
   WRONG_CONTRACT: { title: "The transaction does not call the swap contract.", action: "Rebuild the transaction with the SDK.", retryable: false },
   WRONG_FUNCTION: { title: "The transaction calls another function.", action: "Rebuild the transaction with the SDK.", retryable: false },
   BAD_ARGS: { title: "The transaction arguments are malformed.", action: "Rebuild the transaction with the SDK.", retryable: false },
-  UNKNOWN_POOL: { title: "The selected pool is not whitelisted.", action: "Re-quote to select a supported pool.", retryable: true },
-  BAD_TIER: { title: "The fee tier is not one of low, mid, high.", action: "Choose a tier from the selector.", retryable: true },
+  UNKNOWN_POOL: { title: "The selected pool is not one of the supported pools.", action: "Quote again to select a supported pool.", retryable: true },
+  BAD_TIER: { title: "The fee level is not low, mid or high.", action: "Choose a level from the selector.", retryable: true },
   TIER_TOO_SMALL: { title: "This transaction is too large for the fee level you chose.", action: "Choose the higher level the sponsor names.", retryable: true },
-  ORIGIN_NONCE_IN_FLIGHT: { title: "This swap is already on its way.", action: "You submitted it twice. Wait for the first one; this page follows it.", retryable: false },
+  ORIGIN_NONCE_IN_FLIGHT: { title: "This swap is already on its way.", action: "You submitted it twice. Wait a few seconds and press Sign and Swap again; the page then follows the first one.", retryable: true },
   UPSTREAM_RATE_LIMITED: { title: "The sponsor service hit a limit reading the chain.", action: "The page tries another service; retry in a minute if none answers.", retryable: true },
   TIER_BELOW_MIN: { title: "This sponsor needs a higher fee level right now.", action: "Choose the level it names, or another service.", retryable: true },
   MIN_OUT_BELOW_TIER: { title: "Your minimum would not cover the network fee.", action: "Raise the amount, lower the fee level, or lower the slippage.", retryable: true },
   BAD_BIPS: { title: "The integrator fee is above 1 percent.", action: "The integrator must pass 0 to 100 bips.", retryable: false },
+  INTEGRATOR_IS_ORIGIN: { title: "The integrator address is your own address.", action: "The integrator must pass a different address, or none.", retryable: false },
   BAD_POST_CONDITIONS: { title: "The wallet changed or dropped the limits on the transaction.", action: "This wallet cannot be used for sponsored swaps.", retryable: false },
   INSUFFICIENT_SBTC: { title: "Your wallet holds less sBTC than the amount.", action: "Lower the amount.", retryable: true },
   BAD_NONCE: { title: "Your wallet has an earlier transaction still pending.", action: "Wait for it to confirm, then sign again.", retryable: true },
@@ -30,7 +31,7 @@ const RELAY: Record<string, Explanation> = {
 
 // Contract and pool abort codes seen in a mined transaction's result.
 const ONCHAIN: Record<string, Explanation> = {
-  "u101": { title: "The transaction was not sponsored on chain.", action: "Submit through a relay.", retryable: false },
+  "u101": { title: "The transaction was not sponsored on chain.", action: "Submit through a sponsor service.", retryable: false },
   "u104": { title: "Your minimum is below the network fee.", action: "Raise the amount or lower the fee level.", retryable: true },
   "u108": { title: "The pool paid less than your minimum because the price moved.", action: "Quote again and retry with more slippage.", retryable: true },
   "u1020": { title: "The pool paid less than your minimum because the price moved (Bitflow XYK).", action: "Quote again and retry with 2 or 5 percent slippage.", retryable: true },
@@ -39,7 +40,7 @@ const ONCHAIN: Record<string, Explanation> = {
 };
 
 export function explainRelayError(code: string): Explanation {
-  return RELAY[code] ?? { title: `The relay refused the transaction (${code}).`, action: "Retry or use another relay.", retryable: true };
+  return RELAY[code] ?? { title: `The sponsor service refused the transaction (${code}).`, action: "Retry, or use another sponsor service.", retryable: true };
 }
 
 // `result` is the tx_result repr from the API, e.g. "(err u1020)"; `status` is abort_by_response / abort_by_post_condition.

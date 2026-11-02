@@ -1,16 +1,16 @@
 # Operator guide: run a sponsor relay
 
-For Werner first, and for any second operator (Hiro, Bitflow, a wallet) who wants an independent relay. Nothing here requires talking to Stacks Labs: the contract pays whichever relay co-signs.
+For the developer first, and for any second operator (Hiro, Bitflow, a wallet) who wants an independent relay. Nothing here requires talking to Stacks Labs: the contract pays whichever relay co-signs.
 
 Two paths. Path A (Cloudflare Worker) is the default and needs no server. Path B (Docker) is the appendix.
 
 ## Before you start
 
-- A Cloudflare account on the free plan: dash.cloudflare.com/sign-up, email and password, verify the email, enable two-factor under My Profile, Authentication. No card, no domain. Open Compute (Workers), accept the Workers terms once, and choose a `workers.dev` subdomain. The Worker itself is created by `wrangler deploy`, not in the dashboard. Werner's subdomain is `labs2`, so the relay URL is `https://sbtc-gas-relay.labs2.workers.dev`.
+- A Cloudflare account on the free plan: dash.cloudflare.com/sign-up, email and password, verify the email, enable two-factor under My Profile, Authentication. No card, no domain. Open Compute (Workers), accept the Workers terms once, and choose a `workers.dev` subdomain. The Worker itself is created by `wrangler deploy`, not in the dashboard. The reference deployment's subdomain is `labs2`, so the relay URL is `https://sbtc-gas-relay.labs2.workers.dev`.
 - Optional: a Hiro API key (free) from platform.hiro.so. The relay works anonymously; the key only raises the per-IP request budget. Store it in your password manager if you make one.
-- Node 22 or later and npm on your Mac (`node -v`).
+- Node 22 or later and npm on your machine (`node -v`).
 - A funded STX wallet you control (Leather) to send the initial STX to the three sponsor addresses.
-- The repo at `/Users/werner/Claude/Projects/sponsored-sbtc-stx-swap/sbtc-gas-swap`.
+- A clone of the repo, `github.com/no314/sbtc-gas-swap`.
 
 ## Path A: Cloudflare Worker
 
@@ -26,7 +26,7 @@ npm ci
 npm test
 ```
 
-Expect: `# pass 59`, `# fail 0`.
+Expect: `# pass 68`, `# fail 0`.
 
 ### 2. Log in to Cloudflare from the terminal
 
@@ -42,7 +42,7 @@ A browser tab opens on your Cloudflare account; click Allow. The terminal prints
 npx wrangler kv namespace create RELAY_KV
 ```
 
-Expect a line like `id = "0123abcd..."`. Open `relay/wrangler.toml`, find `[[kv_namespaces]]`, replace `REPLACE_WITH_KV_NAMESPACE_ID` with that id, and remove the `preview_id = "local"` line. KV holds only the rate-limit windows. Nonces, pending transactions and in-flight origin nonces live in a Durable Object (`TierState`, declared in the same file with a `[[migrations]]` block); it needs no setup, the first deploy creates it, and it is included in the free plan.
+Expect a line like `id = "0123abcd..."`. Open `relay/wrangler.toml`, find `[[kv_namespaces]]`, replace `REPLACE_WITH_KV_NAMESPACE_ID` with that id, and remove the `preview_id = "local"` line. KV holds only the rate-limit windows. Nonces, pending transactions and in-flight origin nonces live in a Durable Object (`TierState`, declared in the same file with a `[[migrations]]` block). It needs no setup: the first deploy creates it, and the free plan includes it.
 
 ### 4. Generate the three sponsor keys
 
@@ -50,11 +50,13 @@ Expect a line like `id = "0123abcd..."`. Open `relay/wrangler.toml`, find `[[kv_
 npm run keygen
 ```
 
-Prints one new 24-word seed phrase and, derived from it with Leather's derivation path, three accounts: account 1 is the LOW sponsor, 2 MID, 3 HIGH. For each: mainnet address, the funding amount, the private key, and the exact `wrangler secret put` command. Save the seed phrase and the three keys in your password manager now; the seed phrase restores the whole sponsor wallet in Leather (Add wallet, restore from seed) so you can always see or move the STX. Nothing is written to disk. `MNEMONIC="..." npm run keygen -- --from-mnemonic --accounts N` re-derives accounts from any seed phrase, which is also how to get the private key of a Leather account (Leather account N is index N-1), for example the dust-swap user.
+Prints one new 24-word seed phrase and, derived from it with Leather's derivation path, three accounts: account 1 is the LOW sponsor, 2 MID, 3 HIGH. For each: mainnet address, the funding amount, the private key, and the exact `wrangler secret put` command. Save the seed phrase and the three keys in your password manager now. The seed phrase restores the whole sponsor wallet in Leather (Add wallet, restore from seed), so you can see or move the STX at any time. Nothing is written to disk. `MNEMONIC="..." npm run keygen -- --from-mnemonic --accounts N` re-derives accounts from any seed phrase. That is also how to get the private key of a Leather account (Leather account N is index N-1), for example the dust-swap user.
 
 ### 5. Fund the sponsor addresses
 
 Send STX from your wallet to each of the three addresses. Suggested start: `2` STX to LOW, `5` STX to MID, `10` STX to HIGH. Each sponsored swap costs the key the network fee (about `0.003` to `0.02` STX today) and repays the tier (`0.01`, `0.1`, `1` STX), so the balances grow after the first swaps. Wait until the three transfers are confirmed (explorer.hiro.so, search each address).
+
+The balance on a key is also the most an attacker can take from it. A swap that aborts on chain costs the key its opening bid and returns nothing, and some aborts cannot be ruled out before signing ([relay.md, preflight](relay.md#preflight-chain-reads)). At the defaults (`5` requests per origin per hour, `500` global), a deliberate abort campaign drains up to `400` STX an hour from HIGH and proportionally less from MID and LOW. Keep each key at a few days of expected use, not a reserve, and top it up from a wallet the relay does not hold.
 
 ### 6. Store the secrets
 
@@ -71,7 +73,7 @@ Each command asks for the value; paste it and press Enter. The terminal prints `
 
 In `relay/wrangler.toml` under `[vars]`: `OPENING_BID_LOW = "3000"`, `OPENING_BID_MID = "6000"`, `OPENING_BID_HIGH = "800000"`, `MIN_TIER = "low"`, `PER_ORIGIN_PER_HOUR = "5"`, `GLOBAL_PER_HOUR = "500"`, `MAX_PENDING_PER_KEY = "20"`, `RBF_AFTER_SECONDS_LOW = "1800"`, `RBF_AFTER_SECONDS_MID = "1800"`, `RBF_AFTER_SECONDS_HIGH = "600"`, `CONTRACT_ID`, `TERMS_URL`. Leave the defaults for the first deploy. `CONTRACT_ID` must be the deployed contract; see [contract.md](contract.md#deployment).
 
-The relay never asks the node for a fee estimate. Each tier opens at its `OPENING_BID_*` in uSTX and is bumped 10 percent after the tier's wait: 30 minutes for low and mid, 10 minutes (every sweep) for high, so high reaches the user's full tier within half an hour. Setting an opening bid at or above the tier makes that tier bid the full tier immediately and leaves no room for a replacement. `MIN_TIER` refuses the brackets below it. Full derivation in [relay.md](relay.md#fee-policy).
+The relay never asks the node for a fee estimate. Each tier opens at its `OPENING_BID_*` in uSTX and is bumped 10 percent after the tier's wait: 30 minutes for low and mid, 10 minutes (every sweep) for high. So high reaches the user's full tier within half an hour. Setting an opening bid at or above the tier makes that tier bid the full tier immediately and leaves no room for a replacement. `MIN_TIER` refuses the brackets below it. Full derivation in [relay.md](relay.md#fee-policy).
 
 ### 8. Deploy
 
@@ -82,7 +84,7 @@ npx wrangler deploy
 
 Expect `Deployed sbtc-gas-relay triggers` and the URL `https://sbtc-gas-relay.<subdomain>.workers.dev`, plus `schedule: */10 * * * *` (the RBF sweep). The first deploy that carries the `[[migrations]]` block also prints the Durable Object class it created.
 
-Upgrading a relay that ran before 2026-10 (state in KV): check `/v1/info` shows `pending` all zero first, then deploy. The objects start from the chain's view of each key, which is correct when nothing is pending; the old `nonce:` and `pending:` keys in KV are simply never read again.
+Upgrading a relay that ran before 2026-10 (state in KV): check `/v1/info` shows `pending` all zero first, then deploy. The objects start from the chain's view of each key, which is correct when nothing is pending; the old `nonce:` and `pending:` keys in KV are never read again.
 
 ### 9. Verify
 
@@ -114,6 +116,7 @@ Add your URL to [`docs/sponsors.json`](sponsors.json) in a pull request (format 
 - Turn the dial: raise the tier's `OPENING_BID_*` in `wrangler.toml` and redeploy when that bracket's transactions sit past their first bump; set `MIN_TIER` to `mid` or `high` to stop sponsoring a bracket. Under sustained congestion the answer is more keys per bracket (one pending transaction per key), not a higher bid; that is a v2 change noted in [relay.md](relay.md#keys-and-nonces).
 - A user who submits the same signed transaction twice within seconds (double click, retry after a timeout) gets `ORIGIN_NONCE_IN_FLIGHT` naming the pending txid; nothing is signed twice. The app's Done page follows the wallet's nonce, so it resolves even when a bumped or twinned transaction mined under another txid.
 - `UPSTREAM_RATE_LIMITED` in `wrangler tail` means Hiro refused the relay's reads: the key's plan is 50 requests per minute and one sponsor request costs 5 to 11. Give the relay a key of its own, or a bigger plan.
+- A key that drops with `pending` at `0` and no price move is being drained by aborts: `wrangler tail` shows the origins. Lower `GLOBAL_PER_HOUR` and `PER_ORIGIN_PER_HOUR` in `wrangler.toml` and redeploy. To stop outright, move the STX off the three keys from Leather: the node then rejects every sponsored broadcast for lack of fee funds, which costs nothing. Nothing in the contract can be changed; the relay is the only gate.
 - Rotate a key: `npm run keygen`, fund the new address, `wrangler secret put SPONSOR_KEY_<TIER>` with the new key, redeploy, then move the remaining STX off the old address.
 
 ## Publish the demo app and sponsors.json
@@ -138,7 +141,7 @@ The deployer account lives on a Ledger, so the deploy goes through Leather inste
 cd app && npm run dev
 ```
 
-Open `http://localhost:5173/deploy.html` in the browser with Leather. The page hashes the reviewed source (must match `5702f09a5ab5…`), connects Leather (switch to the Ledger account `SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4`; the page refuses any other account), and sends `stx_deployContract` (Clarity 3, deny mode, no post-conditions). Confirm on the Ledger. The page shows the txid and an explorer link. When mined, run `node scripts/pin-contract.mjs` in `contracts/` and paste the publish height into `docs/contract.md`. The page is a build entry (`dist/deploy.html`) but is not linked from the app.
+Open `http://localhost:5173/deploy.html` in the browser with Leather. The page hashes the reviewed source (must match `5702f09a5ab584d56d7e803b94143d1c51327c5a95f2a2309df4e604215ed608`), connects Leather (switch to the Ledger account `SP2BM6AQSMQ04CX8KDE62QBFVZTDZ2ZX80GZJSBZ4`; the page refuses any other account), and sends `stx_deployContract` (Clarity 3, deny mode, no post-conditions). Confirm on the Ledger. The page shows the txid and an explorer link. When mined, run `node scripts/pin-contract.mjs` in `contracts/` and paste the publish height into `docs/contract.md`. The page is a build entry (`dist/deploy.html`) but is not linked from the app.
 
 ## Path B: Docker on your own server (appendix)
 
@@ -154,6 +157,6 @@ docker run -d --name sbtc-gas-relay -p 8787:8787 -v sbtc-gas-relay-state:/state 
 curl localhost:8787/v1/info
 ```
 
-To use your own stacks-node for reads and broadcasts set `STACKS_API_URL` to it; the relay then falls back from the Hiro `/extended` nonce endpoint to `/v2/accounts`, which does not see the mempool, so keep `MAX_PENDING_PER_KEY` low (for example `5`) in that mode. Put the container behind TLS (Caddy or the like) before publishing its URL. This path is optional; a second independent operator using Path A gives the same redundancy without exposing a home server.
+To use your own stacks-node for reads and broadcasts, set `STACKS_API_URL` to it. The relay then falls back from the Hiro `/extended` nonce endpoint to `/v2/accounts`, which does not see the mempool, so keep `MAX_PENDING_PER_KEY` low (for example `5`) in that mode. Put the container behind TLS (Caddy or the like) before publishing its URL. This path is optional; a second independent operator using Path A gives the same redundancy without exposing a home server.
 
-Handoff for a Cowork session on the node: connect the repo folder, then ask for "build the relay Docker image from relay/Dockerfile, run it with the environment in relay/.env.example filled from my password manager, and put Caddy in front on <domain>". The keys are pasted by you, never stored in the repo.
+On the server: build the image from `relay/Dockerfile`, run it with the environment in `relay/.env.example` filled from your password manager, and put Caddy in front on your domain. The keys are pasted by you, never stored in the repo.

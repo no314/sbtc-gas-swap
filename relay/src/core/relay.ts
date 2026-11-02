@@ -50,7 +50,7 @@ export async function handleSponsor(txHex: string, d: RelayDeps): Promise<Sponso
     const r = await d.store.getOriginReservation(v.origin, v.originNonce, now);
     throw new RelayError("ORIGIN_NONCE_IN_FLIGHT", r?.txid
       ? `nonce ${v.originNonce} of ${v.origin} is already sponsored and pending as ${r.txid}`
-      : `nonce ${v.originNonce} of ${v.origin} is being sponsored by another request right now`, 409);
+      : `nonce ${v.originNonce} of ${v.origin} is being sponsored by another request right now`, 409, r?.txid ? { txid: r.txid } : {});
   }
   try {
     return await sponsorReserved(v, txHex, key, d, now);

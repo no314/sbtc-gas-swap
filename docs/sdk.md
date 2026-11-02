@@ -13,7 +13,7 @@ Until it is published on npm, depend on the folder: `"@no314/sbtc-gas-swap": "fi
 1. `verifyContract(chain)`: the live source's structure hash equals the pinned hash. Refuse to continue on mismatch; show "unavailable" on a failed read.
 2. `readPoolStates(chain)` then `quoteFromStates(states, {amountSats, integratorBips})`, or `quoteAllPools(chain, ...)` for both in one call. Get `best` (pool, output), `fees` (b, c, net), `unavailable` (pools whose read failed).
 3. `new RelayClient().discover()` then `RelayClient.rank(candidates, tier)`: the relays that accept the tier, best first. `defaultTier(amountSats, {minTier})` picks the tier from the amount and the lowest relay minimum; `defaultSlippageBips(amountSats)` gives `1000` (10 percent) up to `30000` sats and `100` above.
-4. `buildSwapCall({user, amountSats, tier, poolId, quoteOut, slippageBips, integrator?, integratorBips?})`: returns the SIP-030 `stx_callContract` parameters with `sponsored: true`, `fee: 0`, `postConditionMode: "deny"` and the three post-conditions. Throws `SwapBuildError` with code `MIN_OUT_BELOW_TIER` (and `BAD_AMOUNT`, `BAD_BIPS`, `UNKNOWN_POOL`).
+4. `buildSwapCall({user, amountSats, tier, poolId, quoteOut, slippageBips, integrator?, integratorBips?})`: returns the SIP-030 `stx_callContract` parameters with `sponsored: true`, `fee: 0`, `postConditionMode: "deny"` and the three post-conditions. Throws `SwapBuildError` with code `MIN_OUT_BELOW_TIER` (and `BAD_AMOUNT`, `BAD_BIPS`, `INTEGRATOR_IS_ORIGIN` when `integrator` equals `user`, `UNKNOWN_POOL`).
 5. Re-quote immediately before signing; block if the fresh output is below `call.minOut`.
 6. `request("stx_callContract", call)` with `@stacks/connect`. Leather returns `{ transaction }` (hex) and does not broadcast a sponsored transaction. Do not expect a `txid` from the wallet.
 7. `relayClient.submit(transactionHex, rankedRelays)`: `{ok: true, txid, relay, fee, tier, sponsor, sponsoredTx}` or `{ok: false, attempts}`. Final verdicts stop the fallback chain; relay conditions move to the next relay.
@@ -65,7 +65,7 @@ Until it is published on npm, depend on the folder: `"@no314/sbtc-gas-swap": "fi
 
 ### Explanations (`explain.ts`)
 
-`explainRelayError(code)` and `explainTxFailure(status, resultRepr)` -> `{title, action, retryable}`. Copy follows the design skill: declarative, actionable, no em dashes.
+`explainRelayError(code)` and `explainTxFailure(status, resultRepr)` -> `{title, action, retryable}`. Each entry is declarative and names the action to take.
 
 ### Contract pinning (`verify-contract.ts`)
 
@@ -73,7 +73,7 @@ Until it is published on npm, depend on the folder: `"@no314/sbtc-gas-swap": "fi
 
 ### Chain reads (`client/chain.ts`)
 
-`new ChainClient({baseUrl?, apiKey?, fetch?, minSpacingMs?, retries?, sender?, cacheBust?})`. One gate for every read: spacing between requests, retry with backoff on `429` and `5xx`, cache-buster on GETs, no caching of failures. Methods: `callRead`, `readXykState`, `readVelarState`, `readDlmmState(binsAhead)`, `getSbtcBalance`, `getStxBalance`, `getNonces` (Hiro extended with node fallback), `getContractSource`, `estimateFee`, `broadcast`, `getTransaction`, `getInfo`. `baseUrl` is the `?api=` override in the dapp: reads only, never what the wallet signs. The anonymous Hiro budget is 50 requests per minute per IP, 500 with `apiKey`.
+`new ChainClient({baseUrl?, apiKey?, fetch?, minSpacingMs?, retries?, sender?, cacheBust?})`. One gate for every read: spacing between requests, retry with backoff on `429` and `5xx`, cache-buster on GETs, no caching of failures. Methods: `callRead`, `readXykState`, `readVelarState`, `readDlmmState(binsAhead)`, `getSbtcBalance`, `getStxBalance`, `getNonces` (Hiro extended with node fallback), `getContractSource`, `estimateFee`, `broadcast`, `getTransaction`, `getInfo`. `baseUrl` is the `?api=` override in the dapp: reads only, never what the wallet signs. Hiro rate-limits per key or per IP. The key on the reference relay allowed 50 requests per minute and 20 per second on 2026-09-29, read from the response headers; one sponsor request costs the relay 5 to 11 reads.
 
 ## Adapters
 
